@@ -2,18 +2,26 @@
 
 import React from "react"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { ordenesVueloMock, operadoresMock, rpasDisponiblesMock } from '@/lib/mock-data'
+import { canAction } from '@/lib/permissions'
 
 export default function NuevaBitacoraPage() {
   const router = useRouter()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canCreate = mounted && canAction('bitacora_vuelo', 'create')
   
   const [formData, setFormData] = useState({
     ordenN: '',
@@ -43,6 +51,9 @@ export default function NuevaBitacoraPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canCreate) return
+
     toast({
       title: "Bitácora creada",
       description: "La bitácora de vuelo ha sido creada exitosamente.",
@@ -64,6 +75,12 @@ export default function NuevaBitacoraPage() {
   return (
     <>
       <Header icon="menu_book" title="Bitácora de Vuelo" onMenuClick={toggle} />
+
+      {mounted && !canCreate ? (
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para crear registros en esta sección.</p>
+        </div>
+      ) : (
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full overflow-y-auto">
         {/* Breadcrumb */}
@@ -88,6 +105,7 @@ export default function NuevaBitacoraPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <fieldset disabled={!canCreate} className="contents">
           {/* Información General */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -383,16 +401,20 @@ export default function NuevaBitacoraPage() {
             >
               Cancelar
             </Link>
-            <button 
-              type="submit"
-              className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-              <span className="material-symbols-outlined text-xl">save</span>
-              Guardar Bitácora
-            </button>
+            {canCreate && (
+              <button 
+                type="submit"
+                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+              >
+                <span className="material-symbols-outlined text-xl">save</span>
+                Guardar Bitácora
+              </button>
+            )}
           </div>
+          </fieldset>
         </form>
       </div>
+      )}
     </>
   )
 }

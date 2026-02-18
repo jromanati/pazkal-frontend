@@ -2,18 +2,26 @@
 
 import React from "react"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { operadoresMock, tiposTrabajoAereoMock } from '@/lib/mock-data'
+import { canAction } from '@/lib/permissions'
 
 export default function NuevaOrdenVueloPage() {
   const router = useRouter()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canCreate = mounted && canAction('ordenes_vuelo', 'create')
   const [formData, setFormData] = useState({
     piloto: '',
     observador: '',
@@ -36,6 +44,9 @@ export default function NuevaOrdenVueloPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canCreate) return
+
     toast({
       title: "Orden de vuelo creada",
       description: "La orden de vuelo ha sido creada exitosamente.",
@@ -46,6 +57,12 @@ export default function NuevaOrdenVueloPage() {
   return (
     <>
       <Header icon="assignment_add" title="Órdenes de Vuelo" onMenuClick={toggle} />
+
+      {mounted && !canCreate ? (
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para crear registros en esta sección.</p>
+        </div>
+      ) : (
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
         {/* Breadcrumb */}
@@ -74,6 +91,7 @@ export default function NuevaOrdenVueloPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <fieldset disabled={!canCreate} className="contents">
           {/* Información General */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -289,16 +307,20 @@ export default function NuevaOrdenVueloPage() {
             >
               Cancelar
             </Link>
-            <button
-              type="submit"
-              className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-bold px-6 sm:px-8 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-              <span className="material-symbols-outlined text-lg sm:text-xl">save</span>
-              Guardar Orden
-            </button>
+            {canCreate && (
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-bold px-6 sm:px-8 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+              >
+                <span className="material-symbols-outlined text-lg sm:text-xl">save</span>
+                Guardar Orden
+              </button>
+            )}
           </div>
+          </fieldset>
         </form>
       </div>
+      )}
     </>
   )
 }

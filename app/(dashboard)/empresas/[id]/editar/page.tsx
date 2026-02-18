@@ -9,6 +9,7 @@ import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { type Empresa } from '@/lib/mock-data'
 import { CompanyService } from '@/services/company.service'
+import { canAction, canView } from '@/lib/permissions'
 
 type Tab = 'datos' | 'documentos'
 
@@ -17,8 +18,11 @@ export default function EditarEmpresaPage() {
   const params = useParams()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('datos')
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
+  const canRead = mounted && canView('empresas')
+  const canUpdate = mounted && canAction('empresas', 'update')
   const [formData, setFormData] = useState({
     rut: '',
     nombre: '',
@@ -33,7 +37,11 @@ export default function EditarEmpresaPage() {
   })
 
   useEffect(() => {
+    setMounted(true)
+
     const run = async () => {
+      if (mounted && !canRead) return
+
       const companyId = Array.isArray(params.id) ? params.id[0] : params.id
       if (!companyId) {
         setEmpresa(null)
@@ -77,7 +85,18 @@ export default function EditarEmpresaPage() {
     }
 
     run()
-  }, [params.id])
+  }, [params.id, mounted, canRead])
+
+  if (mounted && !canRead) {
+    return (
+      <>
+        <Header icon="corporate_fare" title="Empresas" onMenuClick={toggle} />
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para acceder a esta sección.</p>
+        </div>
+      </>
+    )
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.id]: e.target.value })
@@ -85,6 +104,8 @@ export default function EditarEmpresaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canUpdate) return
 
     const companyId = Array.isArray(params.id) ? params.id[0] : params.id
     if (!companyId) {
@@ -173,6 +194,7 @@ export default function EditarEmpresaPage() {
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="p-8">
               <form onSubmit={handleSubmit} className="space-y-8">
+                <fieldset disabled={!canUpdate} className="contents">
                 {/* Datos básicos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="col-span-1">
@@ -336,6 +358,7 @@ export default function EditarEmpresaPage() {
                     </div>
                   </div>
                 </div>
+                </fieldset>
               </form>
             </div>
 
@@ -347,13 +370,15 @@ export default function EditarEmpresaPage() {
               >
                 Cancelar
               </Link>
-              <button 
-                onClick={handleSubmit}
-                className="bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-lg"
-              >
-                <span className="material-symbols-outlined text-lg">save</span>
-                <span>Guardar Cambios</span>
-              </button>
+              {canUpdate && (
+                <button 
+                  onClick={handleSubmit}
+                  className="bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-lg"
+                >
+                  <span className="material-symbols-outlined text-lg">save</span>
+                  <span>Guardar Cambios</span>
+                </button>
+              )}
             </div>
           </div>
         )}

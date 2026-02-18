@@ -1,13 +1,14 @@
 "use client"
 
 import React from "react"
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { CompanyService } from '@/services/company.service'
+import { canAction } from '@/lib/permissions'
 
 type Tab = 'datos' | 'documentos'
 
@@ -16,6 +17,13 @@ export default function NuevaEmpresaPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('datos')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canCreate = mounted && canAction('empresas', 'create')
 
   const [formData, setFormData] = useState({
     rut_empresa: '',
@@ -36,6 +44,8 @@ export default function NuevaEmpresaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canCreate) return
 
     const codeCandidate = (formData.rut_empresa || formData.nombre)
       .toUpperCase()
@@ -86,6 +96,12 @@ export default function NuevaEmpresaPage() {
     <>
       <Header icon="corporate_fare" title="Crear Nueva Empresa" onMenuClick={toggle} />
 
+      {mounted && !canCreate ? (
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para crear registros en esta sección.</p>
+        </div>
+      ) : (
+
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-800 mb-6 lg:mb-8 overflow-x-auto">
@@ -100,6 +116,7 @@ export default function NuevaEmpresaPage() {
         {activeTab === 'datos' && (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-8">
+              <fieldset disabled={!canCreate} className="contents">
               <div className="p-4 sm:p-6 lg:p-8">
                   {/* Datos básicos */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -267,25 +284,29 @@ export default function NuevaEmpresaPage() {
               </div>
 
               {/* Footer */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 sm:p-6 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 border-t border-gray-200 dark:border-gray-800">
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-3 sm:gap-4 p-4 sm:p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800">
                 <Link
                   href="/empresas"
-                  className="px-4 sm:px-6 py-2 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-center"
+                  className="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors text-center"
                 >
                   Cancelar
                 </Link>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-12 py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-xl">save</span>
-                  Guardar
-                </button>
+                {canCreate && (
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-12 py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-xl">save</span>
+                    Guardar
+                  </button>
+                )}
               </div>
+              </fieldset>
             </form>
           </div>
         )}
       </div>
+      )}
     </>
   )
 }

@@ -14,9 +14,15 @@ import { canAction } from '@/lib/permissions'
 export default function EmpresasPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
-  const canCreate = canAction('empresas', 'create')
-  const canUpdate = canAction('empresas', 'update')
-  const canDelete = canAction('empresas', 'delete')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canCreate = mounted && canAction('empresas', 'create')
+  const canUpdate = mounted && canAction('empresas', 'update')
+  const canDelete = mounted && canAction('empresas', 'delete')
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
@@ -142,26 +148,23 @@ export default function EmpresasPage() {
                     <p className="text-xs text-gray-500 truncate">{empresa.razonSocial}</p>
                   </div>
                 </div>
-                {(canUpdate || canDelete) && (
-                  <div className="flex gap-1 flex-shrink-0">
-                    {canUpdate && (
-                      <Link
-                        href={`/empresas/${empresa.id}/editar`}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-[#2c528c] transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </Link>
-                    )}
-                    {canDelete && (
-                      <button 
-                        onClick={() => handleDelete(empresa)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div className="flex gap-1 flex-shrink-0">
+                  <Link
+                    href={`/empresas/${empresa.id}/editar`}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-[#2c528c] transition-colors"
+                    title={canUpdate ? 'Editar empresa' : 'Ver detalle'}
+                  >
+                    <span className="material-symbols-outlined text-lg">{canUpdate ? 'edit' : 'visibility'}</span>
+                  </Link>
+                  {canDelete && (
+                    <button 
+                      onClick={() => handleDelete(empresa)}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-3">
                 <div>
@@ -211,28 +214,24 @@ export default function EmpresasPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {(canUpdate || canDelete) && (
-                        <div className="flex justify-end gap-2">
-                          {canUpdate && (
-                            <Link
-                              href={`/empresas/${empresa.id}/editar`}
-                              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
-                              title="Editar empresa"
-                            >
-                              <span className="material-symbols-outlined text-xl">edit</span>
-                            </Link>
-                          )}
-                          {canDelete && (
-                            <button 
-                              onClick={() => handleDelete(empresa)}
-                              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-red-500 transition-colors"
-                              title="Eliminar empresa"
-                            >
-                              <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        <Link
+                          href={`/empresas/${empresa.id}/editar`}
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
+                          title={canUpdate ? 'Editar empresa' : 'Ver detalle'}
+                        >
+                          <span className="material-symbols-outlined text-xl">{canUpdate ? 'edit' : 'visibility'}</span>
+                        </Link>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDelete(empresa)}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-red-500 transition-colors"
+                            title="Eliminar empresa"
+                          >
+                            <span className="material-symbols-outlined text-xl">delete</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
@@ -12,10 +12,16 @@ import { canAction, canView } from '@/lib/permissions'
 export default function BitacoraVueloPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
-  const canRead = canView('bitacora_vuelo')
-  const canCreate = canAction('bitacora_vuelo', 'create')
-  const canUpdate = canAction('bitacora_vuelo', 'update')
-  const canDelete = canAction('bitacora_vuelo', 'delete')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canRead = mounted && canView('bitacora_vuelo')
+  const canCreate = mounted && canAction('bitacora_vuelo', 'create')
+  const canUpdate = mounted && canAction('bitacora_vuelo', 'update')
+  const canDelete = mounted && canAction('bitacora_vuelo', 'delete')
   const [bitacoras, setBitacoras] = useState<BitacoraVuelo[]>(bitacorasVueloMock)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; bitacora: BitacoraVuelo | null }>({
     open: false,
@@ -42,7 +48,7 @@ export default function BitacoraVueloPage() {
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
   }
 
-  if (!canRead) {
+  if (mounted && !canRead) {
     return (
       <>
         <Header icon="menu_book" title="Bitácora de Vuelo" onMenuClick={toggle} />
@@ -115,15 +121,13 @@ export default function BitacoraVueloPage() {
                     <td className="px-6 py-4 text-sm text-center font-medium text-slate-700 dark:text-gray-200">{bitacora.tiempoVuelo}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {canUpdate && (
-                          <Link 
-                            href={`/bitacora-vuelo/${bitacora.id}/editar`}
-                            className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
-                            title="Editar"
-                          >
-                            <span className="material-symbols-outlined text-xl">edit</span>
-                          </Link>
-                        )}
+                        <Link 
+                          href={`/bitacora-vuelo/${bitacora.id}/editar`}
+                          className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
+                          title={canUpdate ? 'Editar' : 'Ver detalle'}
+                        >
+                          <span className="material-symbols-outlined text-xl">{canUpdate ? 'edit' : 'visibility'}</span>
+                        </Link>
                         <button 
                           className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
                           title="Descargar PDF"
@@ -181,14 +185,13 @@ export default function BitacoraVueloPage() {
                   </div>
                   
                   <div className="flex items-center gap-1">
-                    {canUpdate && (
-                      <Link 
-                        href={`/bitacora-vuelo/${bitacora.id}/editar`}
-                        className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </Link>
-                    )}
+                    <Link 
+                      href={`/bitacora-vuelo/${bitacora.id}/editar`}
+                      className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
+                      title={canUpdate ? 'Editar' : 'Ver detalle'}
+                    >
+                      <span className="material-symbols-outlined text-lg">{canUpdate ? 'edit' : 'visibility'}</span>
+                    </Link>
                     <button className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors">
                       <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
                     </button>

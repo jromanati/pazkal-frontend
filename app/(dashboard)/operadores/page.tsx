@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
@@ -12,10 +12,16 @@ import { canAction, canView } from '@/lib/permissions'
 export default function OperadoresPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
-  const canRead = canView('operadores')
-  const canCreate = canAction('operadores', 'create')
-  const canUpdate = canAction('operadores', 'update')
-  const canDelete = canAction('operadores', 'delete')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canRead = mounted && canView('operadores')
+  const canCreate = mounted && canAction('operadores', 'create')
+  const canUpdate = mounted && canAction('operadores', 'update')
+  const canDelete = mounted && canAction('operadores', 'delete')
   const [operadores, setOperadores] = useState<Operador[]>(operadoresMock)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; operador: Operador | null }>({
     open: false,
@@ -37,7 +43,7 @@ export default function OperadoresPage() {
     }
   }
 
-  if (!canRead) {
+  if (mounted && !canRead) {
     return (
       <>
         <Header onMenuClick={toggle} />
@@ -88,14 +94,13 @@ export default function OperadoresPage() {
                 </div>
                 {(canUpdate || canDelete) && (
                   <div className="flex gap-1 flex-shrink-0">
-                    {canUpdate && (
-                      <Link
-                        href={`/operadores/${operador.id}/editar`}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-[#2c528c] transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </Link>
-                    )}
+                    <Link
+                      href={`/operadores/${operador.id}/editar`}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-slate-400 hover:text-[#2c528c] transition-colors"
+                      title={canUpdate ? 'Editar operador' : 'Ver detalle'}
+                    >
+                      <span className="material-symbols-outlined text-lg">{canUpdate ? 'edit' : 'visibility'}</span>
+                    </Link>
                     {canDelete && (
                       <button 
                         onClick={() => handleDelete(operador)}
@@ -157,15 +162,13 @@ export default function OperadoresPage() {
                     <td className="px-6 py-4 text-right">
                       {(canUpdate || canDelete) && (
                         <div className="flex justify-end gap-2">
-                          {canUpdate && (
-                            <Link
-                              href={`/operadores/${operador.id}/editar`}
-                              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
-                              title="Editar operador"
-                            >
-                              <span className="material-symbols-outlined text-lg">edit</span>
-                            </Link>
-                          )}
+                          <Link
+                            href={`/operadores/${operador.id}/editar`}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
+                            title={canUpdate ? 'Editar operador' : 'Ver detalle'}
+                          >
+                            <span className="material-symbols-outlined text-lg">{canUpdate ? 'edit' : 'visibility'}</span>
+                          </Link>
                           {canDelete && (
                             <button 
                               onClick={() => handleDelete(operador)}

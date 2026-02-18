@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { operadoresMock, empresasMock, tiposCalificacionMock, type Operador } from '@/lib/mock-data'
+import { canAction, canView } from '@/lib/permissions'
 
 type Tab = 'datos-personales' | 'datos-profesionales' | 'calificaciones'
 
@@ -15,15 +16,31 @@ export default function EditarOperadorPage() {
   const params = useParams()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('datos-personales')
   const [operador, setOperador] = useState<Operador | null>(null)
+  const canRead = mounted && canView('operadores')
+  const canUpdate = mounted && canAction('operadores', 'update')
 
   useEffect(() => {
+    setMounted(true)
+
     const foundOperador = operadoresMock.find(o => o.id === params.id)
     if (foundOperador) {
       setOperador(foundOperador)
     }
   }, [params.id])
+
+  if (mounted && !canRead) {
+    return (
+      <>
+        <Header icon="engineering" title="Operadores" onMenuClick={toggle} />
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para acceder a esta sección.</p>
+        </div>
+      </>
+    )
+  }
 
   if (!operador) {
     return (
@@ -59,19 +76,21 @@ export default function EditarOperadorPage() {
             >
               Cancelar
             </Link>
-            <button 
-              onClick={() => {
-                toast({
-                  title: "Operador actualizado",
-                  description: `Los datos de "${operador?.nombre}" han sido guardados exitosamente.`,
-                })
-                router.push('/operadores')
-              }}
-              className="flex-1 sm:flex-none bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
-            >
-              <span className="material-symbols-outlined text-base sm:text-lg">save</span>
-              Guardar
-            </button>
+            {canUpdate && (
+              <button 
+                onClick={() => {
+                  toast({
+                    title: "Operador actualizado",
+                    description: `Los datos de "${operador?.nombre}" han sido guardados exitosamente.`,
+                  })
+                  router.push('/operadores')
+                }}
+                className="flex-1 sm:flex-none bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
+              >
+                <span className="material-symbols-outlined text-base sm:text-lg">save</span>
+                Guardar
+              </button>
+            )}
           </div>
         </div>
 
@@ -115,9 +134,11 @@ export default function EditarOperadorPage() {
         </div>
 
         {/* Content */}
-        {activeTab === 'datos-personales' && <DatosPersonales operador={operador} />}
-        {activeTab === 'datos-profesionales' && <DatosProfesionales />}
-        {activeTab === 'calificaciones' && <Calificaciones />}
+        <fieldset disabled={!canUpdate} className="contents">
+          {activeTab === 'datos-personales' && <DatosPersonales operador={operador} />}
+          {activeTab === 'datos-profesionales' && <DatosProfesionales />}
+          {activeTab === 'calificaciones' && <Calificaciones />}
+        </fieldset>
       </div>
     </>
   )

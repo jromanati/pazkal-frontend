@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
@@ -12,10 +12,16 @@ import { canAction, canView } from '@/lib/permissions'
 export default function OrdenesVueloPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
-  const canRead = canView('ordenes_vuelo')
-  const canCreate = canAction('ordenes_vuelo', 'create')
-  const canUpdate = canAction('ordenes_vuelo', 'update')
-  const canDelete = canAction('ordenes_vuelo', 'delete')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canRead = mounted && canView('ordenes_vuelo')
+  const canCreate = mounted && canAction('ordenes_vuelo', 'create')
+  const canUpdate = mounted && canAction('ordenes_vuelo', 'update')
+  const canDelete = mounted && canAction('ordenes_vuelo', 'delete')
   const [ordenes, setOrdenes] = useState<OrdenVuelo[]>(ordenesVueloMock)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; orden: OrdenVuelo | null }>({
     open: false,
@@ -62,7 +68,7 @@ export default function OrdenesVueloPage() {
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
   }
 
-  if (!canRead) {
+  if (mounted && !canRead) {
     return (
       <>
         <Header icon="assignment" title="Módulo de Órdenes de Vuelo" onMenuClick={toggle} />
@@ -127,26 +133,24 @@ export default function OrdenesVueloPage() {
                     <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{orden.trabajo}</td>
                     <td className="px-6 py-4">{getEstadoBadge(orden.estado)}</td>
                     <td className="px-6 py-4 text-right">
-                      {(canUpdate || canDelete) && (
-                        <div className="flex items-center justify-end gap-1">
-                          {canUpdate && (
-                            <Link
-                              href={`/ordenes-vuelo/${orden.id}/editar`}
-                              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-xl">edit</span>
-                            </Link>
-                          )}
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDelete(orden)}
-                              className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded text-slate-400 hover:text-red-500 transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/ordenes-vuelo/${orden.id}/editar`}
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
+                          title={canUpdate ? 'Editar orden' : 'Ver detalle'}
+                        >
+                          <span className="material-symbols-outlined text-xl">{canUpdate ? 'edit' : 'visibility'}</span>
+                        </Link>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(orden)}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded text-slate-400 hover:text-red-500 transition-colors"
+                            title="Eliminar"
+                          >
+                            <span className="material-symbols-outlined text-xl">delete</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -204,15 +208,13 @@ export default function OrdenesVueloPage() {
               </div>
 
               <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
-                {canUpdate && (
-                  <Link
-                    href={`/ordenes-vuelo/${orden.id}/editar`}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-[#2c528c] hover:bg-[#2c528c]/5 rounded-lg transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-base">edit</span>
-                    Editar
-                  </Link>
-                )}
+                <Link
+                  href={`/ordenes-vuelo/${orden.id}/editar`}
+                  className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-[#2c528c] hover:bg-[#2c528c]/5 rounded-lg transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">{canUpdate ? 'edit' : 'visibility'}</span>
+                  {canUpdate ? 'Editar' : 'Ver'}
+                </Link>
                 {canDelete && (
                   <button
                     onClick={() => handleDelete(orden)}

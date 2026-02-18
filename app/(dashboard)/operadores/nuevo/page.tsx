@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { empresasMock, tiposCalificacionMock } from '@/lib/mock-data'
+import { canAction } from '@/lib/permissions'
 
 type Tab = 'datos-personales' | 'datos-profesionales' | 'calificaciones'
 
@@ -15,10 +16,23 @@ export default function NuevoOperadorPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('datos-personales')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canCreate = mounted && canAction('operadores', 'create')
 
   return (
     <>
       <Header icon="engineering" title="Crear Nuevo Operador" onMenuClick={toggle} />
+
+      {mounted && !canCreate ? (
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para crear registros en esta sección.</p>
+        </div>
+      ) : (
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
         {/* Title */}
@@ -36,19 +50,21 @@ export default function NuevoOperadorPage() {
             >
               Cancelar
             </Link>
-            <button 
-              onClick={() => {
-                toast({
-                  title: "Operador creado",
-                  description: "El operador ha sido creado exitosamente.",
-                })
-                router.push('/operadores')
-              }}
-              className="flex-1 sm:flex-none bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
-            >
-              <span className="material-symbols-outlined text-base sm:text-lg">save</span>
-              Guardar
-            </button>
+            {canCreate && (
+              <button 
+                onClick={() => {
+                  toast({
+                    title: "Operador creado",
+                    description: "El operador ha sido creado exitosamente.",
+                  })
+                  router.push('/operadores')
+                }}
+                className="flex-1 sm:flex-none bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
+              >
+                <span className="material-symbols-outlined text-base sm:text-lg">save</span>
+                Guardar
+              </button>
+            )}
           </div>
         </div>
 
@@ -92,10 +108,13 @@ export default function NuevoOperadorPage() {
         </div>
 
         {/* Content */}
-        {activeTab === 'datos-personales' && <DatosPersonales />}
-        {activeTab === 'datos-profesionales' && <DatosProfesionales />}
-        {activeTab === 'calificaciones' && <Calificaciones />}
+        <fieldset disabled={!canCreate} className="contents">
+          {activeTab === 'datos-personales' && <DatosPersonales />}
+          {activeTab === 'datos-profesionales' && <DatosProfesionales />}
+          {activeTab === 'calificaciones' && <Calificaciones />}
+        </fieldset>
       </div>
+      )}
     </>
   )
 }
@@ -388,7 +407,7 @@ function Calificaciones() {
                     >
                       <option value="">Seleccionar...</option>
                       {tiposCalificacionMock.map((tipo) => (
-                        <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                        <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
                       ))}
                     </select>
                   </div>

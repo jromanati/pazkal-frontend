@@ -9,13 +9,17 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { bitacorasVueloMock, ordenesVueloMock, operadoresMock, rpasDisponiblesMock, type BitacoraVuelo } from '@/lib/mock-data'
+import { canAction, canView } from '@/lib/permissions'
 
 export default function EditarBitacoraPage() {
   const router = useRouter()
   const params = useParams()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
   const [bitacora, setBitacora] = useState<BitacoraVuelo | null>(null)
+  const canRead = mounted && canView('bitacora_vuelo')
+  const canUpdate = mounted && canAction('bitacora_vuelo', 'update')
   
   const [formData, setFormData] = useState({
     ordenN: '',
@@ -44,6 +48,8 @@ export default function EditarBitacoraPage() {
   ])
 
   useEffect(() => {
+    setMounted(true)
+
     const found = bitacorasVueloMock.find(b => b.id === params.id)
     if (found) {
       setBitacora(found)
@@ -78,6 +84,9 @@ export default function EditarBitacoraPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canUpdate) return
+
     toast({
       title: "Bitácora actualizada",
       description: `Los datos de "${bitacora?.codigo}" han sido guardados exitosamente.`,
@@ -94,6 +103,17 @@ export default function EditarBitacoraPage() {
     setBaterias(prev => prev.map((bat, i) => 
       i === index ? { ...bat, [field]: value } : bat
     ))
+  }
+
+  if (mounted && !canRead) {
+    return (
+      <>
+        <Header icon="menu_book" title="Bitácora de Vuelo" onMenuClick={toggle} />
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para acceder a esta sección.</p>
+        </div>
+      </>
+    )
   }
 
   if (!bitacora) {
@@ -137,6 +157,7 @@ export default function EditarBitacoraPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <fieldset disabled={!canUpdate} className="contents">
           {/* Información General */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -432,14 +453,17 @@ export default function EditarBitacoraPage() {
             >
               Cancelar
             </Link>
-            <button 
-              type="submit"
-              className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-              <span className="material-symbols-outlined text-xl">save</span>
-              Guardar Cambios
-            </button>
+            {canUpdate && (
+              <button 
+                type="submit"
+                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+              >
+                <span className="material-symbols-outlined text-xl">save</span>
+                Guardar Cambios
+              </button>
+            )}
           </div>
+          </fieldset>
         </form>
       </div>
     </>

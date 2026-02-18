@@ -9,13 +9,17 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { ordenesVueloMock, operadoresMock, tiposTrabajoAereoMock, type OrdenVuelo } from '@/lib/mock-data'
+import { canAction, canView } from '@/lib/permissions'
 
 export default function EditarOrdenVueloPage() {
   const router = useRouter()
   const params = useParams()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
   const [orden, setOrden] = useState<OrdenVuelo | null>(null)
+  const canRead = mounted && canView('ordenes_vuelo')
+  const canUpdate = mounted && canAction('ordenes_vuelo', 'update')
   const [formData, setFormData] = useState({
     piloto: '',
     observador: '',
@@ -34,6 +38,8 @@ export default function EditarOrdenVueloPage() {
   })
 
   useEffect(() => {
+    setMounted(true)
+
     const ordenEncontrada = ordenesVueloMock.find(o => o.id === params.id)
     if (ordenEncontrada) {
       setOrden(ordenEncontrada)
@@ -62,6 +68,9 @@ export default function EditarOrdenVueloPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canUpdate) return
+
     toast({
       title: "Orden actualizada",
       description: `La orden "${orden?.codigo}" ha sido actualizada exitosamente.`,
@@ -111,6 +120,7 @@ export default function EditarOrdenVueloPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <fieldset disabled={!canUpdate} className="contents">
           {/* Estado */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -353,14 +363,17 @@ export default function EditarOrdenVueloPage() {
             >
               Cancelar
             </Link>
-            <button
-              type="submit"
-              className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-bold px-6 sm:px-8 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-              <span className="material-symbols-outlined text-lg sm:text-xl">save</span>
-              Guardar Cambios
-            </button>
+            {canUpdate && (
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-bold px-6 sm:px-8 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+              >
+                <span className="material-symbols-outlined text-lg sm:text-xl">save</span>
+                Guardar Cambios
+              </button>
+            )}
           </div>
+          </fieldset>
         </form>
       </div>
     </>
