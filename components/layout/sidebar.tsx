@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { usuarioActualMock } from '@/lib/mock-data'
 import { AuthService } from '@/services/auth.service'
-import { canView, type Section } from '@/lib/permissions'
+import { canView, getCurrentUserFromStorage, type Section } from '@/lib/permissions'
 
 interface NavItem {
   href: string
@@ -15,6 +14,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { href: '/inicio', icon: 'home', label: 'Inicio' },
   { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
   { href: '/empresas', icon: 'corporate_fare', label: 'Empresas' },
   { href: '/operadores', icon: 'engineering', label: 'Operadores' },
@@ -22,9 +22,11 @@ const navItems: NavItem[] = [
   { href: '/bitacora-vuelo', icon: 'menu_book', label: 'Bitácora de vuelo' },
   { href: '/reportes', icon: 'analytics', label: 'Reportes', disabled: true },
   { href: '/usuarios', icon: 'manage_accounts', label: 'Usuarios' },
+  { href: '/perfil', icon: 'account_circle', label: 'Mi perfil' },
 ]
 
 const sectionByHref: Partial<Record<string, Section>> = {
+  '/inicio': 'dashboard',
   '/dashboard': 'dashboard',
   '/empresas': 'empresas',
   '/operadores': 'operadores',
@@ -42,9 +44,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<ReturnType<typeof getCurrentUserFromStorage>>(null)
 
   useEffect(() => {
     setMounted(true)
+    setUser(getCurrentUserFromStorage())
   }, [])
 
   const isActive = (href: string) => {
@@ -156,18 +160,30 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* User info */}
         <div className="p-4 lg:p-6 border-t border-white/10">
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-full bg-gray-600 overflow-hidden flex-shrink-0">
-              {usuarioActualMock.avatar && (
+            <div className="size-8 rounded-full bg-gray-600 overflow-hidden flex-shrink-0 flex items-center justify-center">
+              {user && (user as any).avatar ? (
                 <img
                   alt="User profile portrait"
                   className="w-full h-full object-cover"
-                  src={usuarioActualMock.avatar || "/placeholder.svg"}
+                  src={(user as any).avatar || "/placeholder.svg"}
                 />
+              ) : (
+                <span className="text-[10px] font-bold text-white">
+                  {String((user as any)?.first_name ?? 'U').slice(0, 1)}{String((user as any)?.last_name ?? '').slice(0, 1)}
+                </span>
               )}
             </div>
             <div className="flex flex-col overflow-hidden min-w-0">
-              <p className="text-xs font-semibold truncate">{usuarioActualMock.nombre}</p>
-              <p className="text-[10px] text-gray-400 truncate uppercase">{usuarioActualMock.rol}</p>
+              <p className="text-xs font-semibold truncate">
+                {user
+                  ? `${String((user as any)?.first_name ?? '').trim()} ${String((user as any)?.last_name ?? '').trim()}`.trim() || String((user as any)?.email ?? '')
+                  : ''}
+              </p>
+              <p className="text-[10px] text-gray-400 truncate uppercase">
+                {user
+                  ? String((user as any)?.groups?.[0]?.name ?? (user as any)?.group_name ?? (user as any)?.group ?? '')
+                  : ''}
+              </p>
             </div>
           </div>
         </div>

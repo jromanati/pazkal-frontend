@@ -11,6 +11,10 @@ import { type Empresa } from '@/lib/mock-data'
 import { CompanyService, type CompanyListItem, type PaginatedResponse } from '@/services/company.service'
 import { canAction } from '@/lib/permissions'
 
+type EmpresaRow = Empresa & {
+  userCount: number
+}
+
 export default function EmpresasPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
@@ -23,7 +27,13 @@ export default function EmpresasPage() {
   const canCreate = mounted && canAction('empresas', 'create')
   const canUpdate = mounted && canAction('empresas', 'update')
   const canDelete = mounted && canAction('empresas', 'delete')
-  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [empresas, setEmpresas] = useState<EmpresaRow[]>([])
+  const [filters, setFilters] = useState({
+    nombre: '',
+    rut: '',
+    razonSocial: '',
+    aoc: '',
+  })
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; empresa: Empresa | null }>({
@@ -48,7 +58,7 @@ export default function EmpresasPage() {
       return
     }
 
-    const mapped: Empresa[] = (companies.results ?? []).map((c) => ({
+    const mapped: EmpresaRow[] = (companies.results ?? []).map((c) => ({
       id: String(c.id),
       nombre: c.name ?? '',
       rut: c.tax_id ?? '',
@@ -61,6 +71,7 @@ export default function EmpresasPage() {
       telefonoGerente: '',
       inspectorDgac: '',
       correoDgac: '',
+      userCount: Number((c as any).user_count ?? 0),
     }))
 
     setEmpresas(mapped)
@@ -81,6 +92,19 @@ export default function EmpresasPage() {
   }
 
   const pagesToShow = Array.from({ length: totalPages }, (_, i) => i + 1)
+
+  const filteredEmpresas = empresas.filter((e) => {
+    const nombre = e.nombre.toLowerCase()
+    const rut = e.rut.toLowerCase()
+    const razon = e.razonSocial.toLowerCase()
+    const aoc = e.aocCeo.toLowerCase()
+
+    if (filters.nombre.trim() && !nombre.includes(filters.nombre.trim().toLowerCase())) return false
+    if (filters.rut.trim() && !rut.includes(filters.rut.trim().toLowerCase())) return false
+    if (filters.razonSocial.trim() && !razon.includes(filters.razonSocial.trim().toLowerCase())) return false
+    if (filters.aoc.trim() && !aoc.includes(filters.aoc.trim().toLowerCase())) return false
+    return true
+  })
 
   const handleDelete = (empresa: Empresa) => {
     setDeleteModal({ open: true, empresa })
@@ -134,9 +158,46 @@ export default function EmpresasPage() {
           )}
         </div>
 
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4 sm:p-5 mb-4 lg:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Nombre</label>
+              <input
+                value={filters.nombre}
+                onChange={(e) => setFilters((p) => ({ ...p, nombre: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">RUT</label>
+              <input
+                value={filters.rut}
+                onChange={(e) => setFilters((p) => ({ ...p, rut: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Razón social</label>
+              <input
+                value={filters.razonSocial}
+                onChange={(e) => setFilters((p) => ({ ...p, razonSocial: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">AOC/CEO</label>
+              <input
+                value={filters.aoc}
+                onChange={(e) => setFilters((p) => ({ ...p, aoc: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Mobile Cards View */}
         <div className="block lg:hidden space-y-3">
-          {empresas.map((empresa) => (
+          {filteredEmpresas.map((empresa) => (
             <div key={empresa.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -177,6 +238,10 @@ export default function EmpresasPage() {
                     {empresa.aocCeo}
                   </span>
                 </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">Usuarios</p>
+                  <p className="text-xs text-slate-600 dark:text-gray-400 font-semibold">{empresa.userCount}</p>
+                </div>
               </div>
             </div>
           ))}
@@ -192,11 +257,12 @@ export default function EmpresasPage() {
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Rut Empresa</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Razón Social</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">AOC/CEO</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Usuarios</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {empresas.map((empresa) => (
+                {filteredEmpresas.map((empresa) => (
                   <tr key={empresa.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -213,6 +279,7 @@ export default function EmpresasPage() {
                         {empresa.aocCeo}
                       </span>
                     </td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400 font-semibold">{empresa.userCount}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <Link

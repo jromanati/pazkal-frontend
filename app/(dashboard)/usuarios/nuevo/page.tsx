@@ -171,6 +171,9 @@ export default function NuevoUsuarioPage() {
   const router = useRouter()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
   const validGroups = ['Gerente', 'Operador', 'Visualizador'] as const
   const [modalEmpresas, setModalEmpresas] = useState(false)
@@ -273,6 +276,15 @@ export default function NuevoUsuarioPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.password !== passwordConfirm) {
+      toast({
+        title: 'Contraseñas no coinciden',
+        description: 'La contraseña y su repetición deben ser iguales.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     const groupName = (() => {
       const g = (formData.group_name || '').trim()
@@ -416,15 +428,55 @@ export default function NuevoUsuarioPage() {
                   <label htmlFor="password" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Contraseña
                   </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {showPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label htmlFor="password_confirm" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Repetir contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password_confirm"
+                      name="password_confirm"
+                      type={showPasswordConfirm ? 'text' : 'password'}
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      required
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordConfirm((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showPasswordConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {showPasswordConfirm ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">

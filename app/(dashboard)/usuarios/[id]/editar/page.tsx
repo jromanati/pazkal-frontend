@@ -172,6 +172,9 @@ export default function EditarUsuarioPage() {
   const params = useParams()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
   const validGroups = ['Gerente', 'Operador', 'Visualizador'] as const
   const [usuario, setUsuario] = useState<Usuario | null>(null)
@@ -183,6 +186,7 @@ export default function EditarUsuarioPage() {
     last_name: '',
     phone: '',
     is_staff: false,
+    is_superuser: false,
     company_ids: [] as string[],
     group_name: '',
     profile: {
@@ -290,6 +294,7 @@ export default function EditarUsuarioPage() {
         first_name: u.first_name ?? '',
         last_name: u.last_name ?? '',
         phone: u.phone ?? '',
+        is_superuser: Boolean(u.is_superuser),
         is_staff: Boolean(u.is_staff),
         company_ids: companyIds,
         group_name: groupName,
@@ -306,6 +311,7 @@ export default function EditarUsuarioPage() {
           empresa_capacitadora: profile?.empresa_capacitadora ?? '',
         },
       })
+      setPasswordConfirm('')
     }
 
     run()
@@ -345,6 +351,17 @@ export default function EditarUsuarioPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (formData.password || passwordConfirm) {
+      if (formData.password !== passwordConfirm) {
+        toast({
+          title: 'Contraseñas no coinciden',
+          description: 'La contraseña y su repetición deben ser iguales.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     const userId = Array.isArray(params.id) ? params.id[0] : params.id
     if (!userId) {
       toast({
@@ -371,6 +388,7 @@ export default function EditarUsuarioPage() {
       first_name: formData.first_name,
       last_name: formData.last_name,
       phone: formData.phone,
+      is_superuser: formData.is_superuser,
       is_staff: formData.is_staff,
       company_ids: formData.company_ids.map(Number),
       group_name: groupName,
@@ -509,14 +527,53 @@ export default function EditarUsuarioPage() {
                   <label htmlFor="password" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Nueva Contraseña <span className="text-gray-400 font-normal">(dejar vacío para mantener)</span>
                   </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {showPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label htmlFor="password_confirm" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Repetir contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password_confirm"
+                      name="password_confirm"
+                      type={showPasswordConfirm ? 'text' : 'password'}
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordConfirm((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showPasswordConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {showPasswordConfirm ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -555,15 +612,15 @@ export default function EditarUsuarioPage() {
               </div>
               <div className="flex items-center gap-2">
                 <input
-                  id="is_staff"
-                  name="is_staff"
+                  id="is_superuser"
+                  name="is_superuser"
                   type="checkbox"
-                  checked={formData.is_staff}
+                  checked={formData.is_superuser}
                   onChange={handleChange}
                   className="h-4 w-4 rounded border-gray-300 text-[#2c528c] focus:ring-[#2c528c]"
                 />
-                <label htmlFor="is_staff" className="text-sm text-slate-600 dark:text-gray-300">
-                  Es staff
+                <label htmlFor="is_superuser" className="text-sm text-slate-600 dark:text-gray-300">
+                  Es super usuario
                 </label>
               </div>
             </div>

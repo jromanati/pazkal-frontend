@@ -28,7 +28,7 @@ const tipoUsuarioBadge: Record<string, string> = {
 
 const tipoUsuarioLabel: Record<string, string> = {
     administrador: 'Administrador',
-    operador: 'Operador RPA',
+    operador: 'Operador',
     gerencia: 'Gerencia',
     visualizador: 'Visualizador',
 }
@@ -38,6 +38,13 @@ export default function UsuariosPage() {
     const { toast } = useToast()
     const canRead = canView('usuarios')
     const [usuarios, setUsuarios] = useState<Usuario[]>([])
+    const [filters, setFilters] = useState({
+        nombre: '',
+        rut: '',
+        email: '',
+        tipoUsuario: '' as '' | Usuario['tipoUsuario'],
+        empresa: '',
+    })
     const [deleteModal, setDeleteModal] = useState<{ open: boolean; usuario: Usuario | null }>({
         open: false,
         usuario: null
@@ -98,15 +105,28 @@ export default function UsuariosPage() {
             const nombre = `${firstName} ${lastName}`.trim() || u.email
             const iniciales = `${(firstName?.[0] || "").toUpperCase()}${(lastName?.[0] || "").toUpperCase()}` || "?"
             const rut = u.profile?.rut ?? ""
-            const empresa = u.companies?.[0]?.name ?? ""
+            const companies = u.companies ?? []
+            const primaryCompany = companies?.[0]?.name ?? ""
+            const extraCompanies = Math.max(0, companies.length - 1)
+            const empresa = primaryCompany
+                ? (extraCompanies > 0 ? `${primaryCompany} +${extraCompanies}` : primaryCompany)
+                : ""
             const ultimaSesion = u.last_login ?? ""
 
-            const tipoUsuario: Usuario["tipoUsuario"] = (u.is_superuser || u.is_staff)
-                ? "administrador"
-                : "visualizador"
+            const rawGroup = String(u.groups?.[0]?.name ?? "").trim()
+            const group = rawGroup.toLowerCase()
 
-            const rol = u.groups?.[0]?.name
-                ?? (u.is_superuser ? "Superusuario" : u.is_staff ? "Staff" : "Usuario")
+            const tipoUsuario: Usuario["tipoUsuario"] = u.is_superuser
+                ? "administrador"
+                : group === "gerente" || group === "gerencia"
+                    ? "gerencia"
+                    : group === "operador"
+                        ? "operador"
+                        : "visualizador"
+
+            const rol = u.is_superuser
+                ? "Superusuario"
+                : rawGroup || "Visualizador"
 
             return {
                 id: String(u.id),
@@ -127,6 +147,20 @@ export default function UsuariosPage() {
 
         setUsuarios(mapped)
     }, [users])
+
+    const filteredUsuarios = usuarios.filter((u) => {
+        const nombre = u.nombre.toLowerCase()
+        const rut = u.rut.toLowerCase()
+        const email = u.email.toLowerCase()
+        const empresa = u.empresa.toLowerCase()
+
+        if (filters.nombre.trim() && !nombre.includes(filters.nombre.trim().toLowerCase())) return false
+        if (filters.rut.trim() && !rut.includes(filters.rut.trim().toLowerCase())) return false
+        if (filters.email.trim() && !email.includes(filters.email.trim().toLowerCase())) return false
+        if (filters.empresa.trim() && !empresa.includes(filters.empresa.trim().toLowerCase())) return false
+        if (filters.tipoUsuario && u.tipoUsuario !== filters.tipoUsuario) return false
+        return true
+    })
 
     if (!canRead) {
         return (
@@ -173,6 +207,57 @@ export default function UsuariosPage() {
             </Link>
             </div>
 
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4 sm:p-5 mb-4 lg:mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div>
+                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Nombre</label>
+                        <input
+                            value={filters.nombre}
+                            onChange={(e) => setFilters((p) => ({ ...p, nombre: e.target.value }))}
+                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">RUT</label>
+                        <input
+                            value={filters.rut}
+                            onChange={(e) => setFilters((p) => ({ ...p, rut: e.target.value }))}
+                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Email</label>
+                        <input
+                            value={filters.email}
+                            onChange={(e) => setFilters((p) => ({ ...p, email: e.target.value }))}
+                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Tipo</label>
+                        <select
+                            value={filters.tipoUsuario}
+                            onChange={(e) => setFilters((p) => ({ ...p, tipoUsuario: e.target.value as any }))}
+                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                        >
+                            <option value="">Todos</option>
+                            <option value="administrador">Administrador</option>
+                            <option value="gerencia">Gerente</option>
+                            <option value="operador">Operador</option>
+                            <option value="visualizador">Visualizador</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Empresa</label>
+                        <input
+                            value={filters.empresa}
+                            onChange={(e) => setFilters((p) => ({ ...p, empresa: e.target.value }))}
+                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                        />
+                    </div>
+                </div>
+            </div>
+
             {/* Tabla Desktop */}
             <div className="hidden lg:block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -188,7 +273,7 @@ export default function UsuariosPage() {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {usuarios.map((usuario) => (
+                    {filteredUsuarios.map((usuario) => (
                     <tr key={usuario.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                         <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -244,11 +329,16 @@ export default function UsuariosPage() {
                 </button>
                 </div>
             </div>
+            <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">
+                    Si un usuario pertenece a más de una empresa, se muestra la primera y luego "+N" con la cantidad de empresas adicionales.
+                </p>
+            </div>
             </div>
 
             {/* Cards Mobile */}
             <div className="lg:hidden space-y-3">
-            {usuarios.map((usuario) => (
+            {filteredUsuarios.map((usuario) => (
                 <div key={usuario.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-3">
@@ -257,12 +347,14 @@ export default function UsuariosPage() {
                     </div>
                     <div>
                         <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">{usuario.nombre}</p>
+                        <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${tipoUsuarioBadge[usuario.tipoUsuario]}`}>
+                                {tipoUsuarioLabel[usuario.tipoUsuario]}
+                            </span>
+                        </p>
                         <p className="text-xs text-gray-400">{usuario.email}</p>
                     </div>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${tipoUsuarioBadge[usuario.tipoUsuario]}`}>
-                    {tipoUsuarioLabel[usuario.tipoUsuario]}
-                    </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs mb-3">
@@ -306,6 +398,12 @@ export default function UsuariosPage() {
                 <span className="material-symbols-outlined">chevron_right</span>
                 </button>
             </div>
+            </div>
+
+            <div className="lg:hidden mt-4">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">
+                    Si un usuario pertenece a más de una empresa, se muestra la primera y luego "+N" con la cantidad de empresas adicionales.
+                </p>
             </div>
         </div>
 

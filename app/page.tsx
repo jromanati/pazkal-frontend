@@ -6,10 +6,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AuthService } from "@/services/auth.service"
 import type { AuthCredentials, AuthResponse } from "@/types/auth"
+import { useToast } from '@/hooks/use-toast'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     usuario: '',
     password: ''
@@ -18,6 +22,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setErrorMessage(null)
     
     // Simulación de login
     // setTimeout(() => {
@@ -29,18 +34,24 @@ export default function LoginPage() {
       password: formData.password || "",
       remember_me: false,
     }
-    const response = await AuthService.authenticate(credentials)
-    setTimeout(() => {
+
+    try {
+      const response = await AuthService.authenticate(credentials)
       if (response.success) {
-       console.log("Login successful:", response.data)
-       router.push('/dashboard')
-       setIsLoading(false)
-      } else {
-        // setError("Credenciales incorrectas. Verifica el usuario y contraseña.")
-        console.error("Login failed:", response.error)
+        router.push('/inicio')
+        return
       }
+
+      const msg = response.error || 'No se pudo iniciar sesión. Verifica tus credenciales.'
+      setErrorMessage(msg)
+      toast({
+        title: 'Error al iniciar sesión',
+        description: msg,
+        variant: 'destructive',
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -67,6 +78,11 @@ export default function LoginPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6 text-left">
+              {errorMessage && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {errorMessage}
+                </div>
+              )}
               <div>
                 <label 
                   className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2" 
@@ -104,10 +120,20 @@ export default function LoginPage() {
                     name="password"
                     placeholder="••••••••"
                     required
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
                 </div>
                 <div className="mt-2 text-right">
                   <a className="text-xs font-semibold text-[#2c528c] hover:text-blue-700 transition-colors" href="#">
