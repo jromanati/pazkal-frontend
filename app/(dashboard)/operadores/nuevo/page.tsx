@@ -186,6 +186,8 @@ export default function NuevoOperadorPage() {
     first_name: '',
     last_name: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
     company_ids: [] as string[],
     profile: {
@@ -272,11 +274,29 @@ export default function NuevoOperadorPage() {
 
   const handleSubmit = async () => {
     if (!canCreate) return
+
+    if (!formData.password) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe ingresar una contraseña.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: 'Contraseñas no coinciden',
+        description: 'La contraseña y su confirmación deben ser iguales.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSaving(true)
     try {
       const payload = {
         email: formData.email,
-        password: 'Temp-1234',
+        password: formData.password,
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
@@ -477,6 +497,8 @@ function DatosPersonales({
     first_name: string
     last_name: string
     email: string
+    password: string
+    confirmPassword: string
     phone: string
     company_ids: string[]
     profile: {
@@ -496,6 +518,9 @@ function DatosPersonales({
   onOpenEmpresas: () => void
   onRemoveEmpresa: (id: string) => void
 }) {
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
       <div className="p-4 sm:p-6 lg:p-8">
@@ -600,6 +625,52 @@ function DatosPersonales({
                 onChange={onChange}
                 type="email"
               />
+            </div>
+            <div>
+              <label className="block mb-1 sm:mb-1.5 text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight" htmlFor="password">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  className="block w-full pr-10 rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={onChange}
+                  type={showPassword ? 'text' : 'password'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  <span className="material-symbols-outlined text-lg">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block mb-1 sm:mb-1.5 text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight" htmlFor="confirmPassword">
+                Repetir contraseña
+              </label>
+              <div className="relative">
+                <input
+                  className="block w-full pr-10 rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={onChange}
+                  type={showConfirmPassword ? 'text' : 'password'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(v => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
+                >
+                  <span className="material-symbols-outlined text-lg">{showConfirmPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
             </div>
           </div>
 

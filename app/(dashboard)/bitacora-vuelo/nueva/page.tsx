@@ -10,7 +10,6 @@ import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { rpasDisponiblesMock } from '@/lib/mock-data'
 import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
-import { UsersService, type User } from '@/services/users.service'
 import { FlightLogsService } from '@/services/flights-logs.service'
 import { canAction } from '@/lib/permissions'
 
@@ -21,7 +20,7 @@ export default function NuevaBitacoraPage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [flightOrders, setFlightOrders] = useState<FlightOrder[]>([])
-  const [operators, setOperators] = useState<User[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<FlightOrder | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -34,7 +33,6 @@ export default function NuevaBitacoraPage() {
     ordenN: '',
     fecha: '',
     lugar: '',
-    operador: '',
     copiloto: '',
     rpa1Modelo: '',
     rpa1Registro: '',
@@ -60,10 +58,7 @@ export default function NuevaBitacoraPage() {
     if (!mounted || !canCreate) return
 
     const load = async () => {
-      const [ordersRes, usersRes] = await Promise.all([
-        FlightOrdersService.listOrders({ ordering: '-scheduled_date' }),
-        UsersService.getUsers({ page: 1, page_size: 1000 }),
-      ])
+      const ordersRes = await FlightOrdersService.listOrders({ ordering: '-scheduled_date' })
 
       if (ordersRes.success && ordersRes.data) {
         const data: unknown = ordersRes.data
@@ -73,14 +68,20 @@ export default function NuevaBitacoraPage() {
           setFlightOrders((data as any).results)
         }
       }
-
-      if (usersRes.success && usersRes.data?.results) {
-        setOperators(usersRes.data.results)
-      }
     }
 
     load()
   }, [mounted, canCreate])
+
+  useEffect(() => {
+    const id = Number(formData.ordenN)
+    if (!id) {
+      setSelectedOrder(null)
+      return
+    }
+    const found = flightOrders.find((o) => o.id === id) ?? null
+    setSelectedOrder(found)
+  }, [formData.ordenN, flightOrders])
 
   const toApiTime = (t: string) => {
     if (!t) return undefined
@@ -110,18 +111,20 @@ export default function NuevaBitacoraPage() {
       })
       return
     }
-    if (!formData.operador) {
-      toast({
-        title: 'Faltan datos',
-        description: 'Debe seleccionar un operador.',
-        variant: 'destructive',
-      })
-      return
-    }
     if (!formData.fecha) {
       toast({
         title: 'Faltan datos',
         description: 'Debe seleccionar una fecha de vuelo.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const operatorId = selectedOrder?.operator?.id
+    if (!operatorId) {
+      toast({
+        title: 'Faltan datos',
+        description: 'La orden de vuelo seleccionada no tiene operador asignado.',
         variant: 'destructive',
       })
       return
@@ -132,7 +135,7 @@ export default function NuevaBitacoraPage() {
       const payload = {
         flight_order_id: Number(formData.ordenN),
         log_number: formData.folio.trim(),
-        operator_id: Number(formData.operador),
+        operator_id: operatorId,
         flight_date: formData.fecha,
         copilot_name: formData.copiloto,
         location: formData.lugar,
@@ -276,19 +279,12 @@ export default function NuevaBitacoraPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Operador (Piloto)</label>
-                <select 
-                  name="operador"
-                  value={formData.operador}
-                  onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Seleccionar Operador</option>
-                  {operators
-                    .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
-                    .map((op) => (
-                      <option key={op.id} value={op.id}>{op.first_name} {op.last_name}</option>
-                    ))}
-                </select>
+                <input
+                  type="text"
+                  value={selectedOrder?.operator?.full_name ?? ''}
+                  readOnly
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm text-sm dark:bg-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/60"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Copiloto / Obs.</label>

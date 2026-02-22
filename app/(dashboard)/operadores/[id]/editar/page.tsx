@@ -291,11 +291,13 @@ export default function EditarOperadorPage() {
     first_name: '',
     last_name: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
     company_ids: [] as string[],
     profile: {
       rut: '',
-      fecha_nacimiento: '',
+      fecha_nacimiento: new Date().toISOString().slice(0, 10),
       telefono: '',
       numero_credencial: 0,
       fecha_otorgamiento_credencial: '',
@@ -383,6 +385,8 @@ export default function EditarOperadorPage() {
         first_name: firstName,
         last_name: lastName,
         email: u.email,
+        password: '',
+        confirmPassword: '',
         phone: u.phone ?? '',
         company_ids: (u.companies ?? []).map(c => String(c.id)),
         profile: {
@@ -451,10 +455,22 @@ export default function EditarOperadorPage() {
   const handleSubmit = async () => {
     if (!canUpdate || !operador?.id) return
 
+    if (formData.password) {
+      if (formData.password !== formData.confirmPassword) {
+        toast({
+          title: 'Contraseñas no coinciden',
+          description: 'La contraseña y su confirmación deben ser iguales.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     setIsSaving(true)
     try {
       const payload = {
         email: formData.email,
+        ...(formData.password ? { password: formData.password } : {}),
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
@@ -674,6 +690,8 @@ function DatosPersonales({
     first_name: string
     last_name: string
     email: string
+    password: string
+    confirmPassword: string
     phone: string
     company_ids: string[]
     profile: {
@@ -693,6 +711,9 @@ function DatosPersonales({
   onOpenEmpresas: () => void
   onRemoveEmpresa: (id: string) => void
 }) {
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
       <div className="p-8">
@@ -791,6 +812,53 @@ function DatosPersonales({
                 onChange={onChange}
                 type="email"
               />
+            </div>
+            <div>
+              <label className="block mb-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight" htmlFor="password">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  className="block w-full pr-10 rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={onChange}
+                  type={showPassword ? 'text' : 'password'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  <span className="material-symbols-outlined text-lg">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1 italic">Si lo deja vacío no se modificará la contraseña.</p>
+            </div>
+            <div>
+              <label className="block mb-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight" htmlFor="confirmPassword">
+                Repetir contraseña
+              </label>
+              <div className="relative">
+                <input
+                  className="block w-full pr-10 rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={onChange}
+                  type={showConfirmPassword ? 'text' : 'password'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(v => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
+                >
+                  <span className="material-symbols-outlined text-lg">{showConfirmPassword ? 'visibility_off' : 'visibility'}</span>
+                </button>
+              </div>
             </div>
           </div>
 

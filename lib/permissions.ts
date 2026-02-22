@@ -71,7 +71,7 @@ const permissions: Record<Role, Record<Section, Record<Action, boolean>>> = {
     dashboard: { read: false, create: false, update: false, delete: false },
     empresas: { read: true, create: false, update: false, delete: false },
     operadores: { read: false, create: false, update: false, delete: false },
-    ordenes_vuelo: { read: false, create: false, update: false, delete: false },
+    ordenes_vuelo: { read: true, create: false, update: false, delete: false },
     bitacora_vuelo: { read: true, create: true, update: true, delete: false },
     usuarios: { read: false, create: false, update: false, delete: false },
   },
