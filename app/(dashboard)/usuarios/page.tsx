@@ -180,31 +180,31 @@ export default function UsuariosPage() {
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
             {/* Header */}
             <div className="mb-6 lg:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div>
-                <nav aria-label="Breadcrumb" className="flex mb-3 lg:mb-4">
-                <ol className="inline-flex items-center space-x-1 md:space-x-3 text-xs text-gray-500 uppercase tracking-widest font-semibold">
-                    <li className="inline-flex items-center">
-                    <Link href="/dashboard" className="hover:text-[#2c528c] transition-colors">Sistema</Link>
-                    </li>
-                    <li>
-                    <div className="flex items-center">
-                        <span className="material-symbols-outlined text-sm mx-1">chevron_right</span>
-                        <span className="text-slate-400">Usuarios</span>
-                    </div>
-                    </li>
-                </ol>
-                </nav>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-gray-100">Gestión de Usuarios</h2>
-                <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-1">Administre las cuentas de acceso y permisos de la plataforma.</p>
-            </div>
-            <Link
-                href="/usuarios/nuevo"
-                className="bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-                <span className="material-symbols-outlined text-lg sm:text-xl">person_add</span>
-                <span className="hidden sm:inline">Crear Usuario</span>
-                <span className="sm:hidden">Crear</span>
-            </Link>
+                <div>
+                    <nav aria-label="Breadcrumb" className="flex mb-3 lg:mb-4">
+                    <ol className="inline-flex items-center space-x-1 md:space-x-3 text-xs text-gray-500 uppercase tracking-widest font-semibold">
+                        <li className="inline-flex items-center">
+                        <Link href="/dashboard" className="hover:text-[#2c528c] transition-colors">Sistema</Link>
+                        </li>
+                        <li>
+                        <div className="flex items-center">
+                            <span className="material-symbols-outlined text-sm mx-1">chevron_right</span>
+                            <span className="text-slate-400">Usuarios</span>
+                        </div>
+                        </li>
+                    </ol>
+                    </nav>
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-gray-100">Gestión de Usuarios</h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-1">Administre las cuentas de acceso y permisos de la plataforma.</p>
+                </div>
+                <Link
+                    href="/usuarios/nuevo"
+                    className="bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                >
+                    <span className="material-symbols-outlined text-lg sm:text-xl">person_add</span>
+                    <span className="hidden sm:inline">Crear Usuario</span>
+                    <span className="sm:hidden">Crear</span>
+                </Link>
             </div>
 
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4 sm:p-5 mb-4 lg:mb-6">

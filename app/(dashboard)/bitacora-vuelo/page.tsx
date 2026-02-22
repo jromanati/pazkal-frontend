@@ -6,13 +6,16 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
-import { bitacorasVueloMock, type BitacoraVuelo } from '@/lib/mock-data'
+import { FlightLogsService, type FlightLog } from '@/services/flights-logs.service'
+import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
+import { UsersService, type User } from '@/services/users.service'
 import { canAction, canView } from '@/lib/permissions'
 
 export default function BitacoraVueloPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -22,24 +25,49 @@ export default function BitacoraVueloPage() {
   const canCreate = mounted && canAction('bitacora_vuelo', 'create')
   const canUpdate = mounted && canAction('bitacora_vuelo', 'update')
   const canDelete = mounted && canAction('bitacora_vuelo', 'delete')
-  const [bitacoras, setBitacoras] = useState<BitacoraVuelo[]>(bitacorasVueloMock)
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; bitacora: BitacoraVuelo | null }>({
+  const [bitacoras, setBitacoras] = useState<FlightLog[]>([])
+  const [flightOrders, setFlightOrders] = useState<FlightOrder[]>([])
+  const [operators, setOperators] = useState<User[]>([])
+  const [filters, setFilters] = useState({
+    date_from: '',
+    date_to: '',
+    flight_order_id: '',
+    operator_id: '',
+    ordering: '-flight_date',
+    search: '',
+  })
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; bitacora: FlightLog | null }>({
     open: false,
     bitacora: null
   })
 
-  const handleDelete = (bitacora: BitacoraVuelo) => {
+  const handleDelete = (bitacora: FlightLog) => {
     setDeleteModal({ open: true, bitacora })
   }
 
-  const confirmDelete = () => {
-    if (deleteModal.bitacora) {
-      const codigoBitacora = deleteModal.bitacora.codigo
-      setBitacoras(bitacoras.filter(b => b.id !== deleteModal.bitacora!.id))
+  const confirmDelete = async () => {
+    const b = deleteModal.bitacora
+    if (!b) return
+
+    setLoading(true)
+    try {
+      const res = await FlightLogsService.deleteLog(b.id)
+      if (!res.success) {
+        toast({
+          title: 'No se pudo eliminar',
+          description: res.error || 'Error al eliminar la bitácora.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       toast({
-        title: "Bitácora eliminada",
-        description: `La bitácora "${codigoBitacora}" ha sido eliminada exitosamente.`,
+        title: 'Bitácora eliminada',
+        description: `La bitácora "${b.log_number}" ha sido eliminada exitosamente.`,
       })
+      setBitacoras((prev) => prev.filter((x) => x.id !== b.id))
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -47,6 +75,73 @@ export default function BitacoraVueloPage() {
     const date = new Date(dateStr)
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
   }
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const loadFiltersData = async () => {
+      const [ordersRes, usersRes] = await Promise.all([
+        FlightOrdersService.listOrders({ ordering: '-scheduled_date' }),
+        UsersService.getUsers({ page: 1, page_size: 1000 }),
+      ])
+
+      if (ordersRes.success && ordersRes.data) {
+        const data: unknown = ordersRes.data
+        if (Array.isArray(data)) {
+          setFlightOrders(data)
+        } else if (data && typeof data === 'object' && Array.isArray((data as any).results)) {
+          setFlightOrders((data as any).results)
+        }
+      }
+
+      if (usersRes.success && usersRes.data?.results) {
+        setOperators(usersRes.data.results)
+      }
+    }
+
+    loadFiltersData()
+  }, [mounted, canRead])
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const run = async () => {
+      setLoading(true)
+      try {
+        const res = await FlightLogsService.listLogs({
+          date_from: filters.date_from || undefined,
+          date_to: filters.date_to || undefined,
+          flight_order_id: filters.flight_order_id ? Number(filters.flight_order_id) : undefined,
+          operator_id: filters.operator_id ? Number(filters.operator_id) : undefined,
+          ordering: filters.ordering || undefined,
+          search: filters.search || undefined,
+        })
+
+        if (!res.success || !res.data) {
+          toast({
+            title: 'Error al cargar bitácoras',
+            description: res.error || 'No se pudieron cargar las bitácoras de vuelo.',
+            variant: 'destructive',
+          })
+          setBitacoras([])
+          return
+        }
+
+        const data: unknown = res.data
+        if (Array.isArray(data)) {
+          setBitacoras(data)
+        } else if (data && typeof data === 'object' && Array.isArray((data as any).results)) {
+          setBitacoras((data as any).results)
+        } else {
+          setBitacoras([])
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    run()
+  }, [mounted, canRead, filters.date_from, filters.date_to, filters.flight_order_id, filters.operator_id, filters.ordering, filters.search, toast])
 
   if (mounted && !canRead) {
     return (
@@ -82,6 +177,104 @@ export default function BitacoraVueloPage() {
           )}
         </div>
 
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mb-4 sm:mb-6">
+          <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#2c528c]">filter_alt</span>
+            <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Filtros</h3>
+          </div>
+          <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_from">Desde</label>
+              <input
+                id="f_from"
+                type="date"
+                value={filters.date_from}
+                onChange={(e) => setFilters((p) => ({ ...p, date_from: e.target.value }))}
+                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_to">Hasta</label>
+              <input
+                id="f_to"
+                type="date"
+                value={filters.date_to}
+                onChange={(e) => setFilters((p) => ({ ...p, date_to: e.target.value }))}
+                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_order">Orden</label>
+              <select
+                id="f_order"
+                value={filters.flight_order_id}
+                onChange={(e) => setFilters((p) => ({ ...p, flight_order_id: e.target.value }))}
+                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+              >
+                <option value="">Todas</option>
+                {flightOrders.map((o) => (
+                  <option key={o.id} value={o.id}>{o.order_number}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_op">Operador</label>
+              <select
+                id="f_op"
+                value={filters.operator_id}
+                onChange={(e) => setFilters((p) => ({ ...p, operator_id: e.target.value }))}
+                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+              >
+                <option value="">Todos</option>
+                {operators
+                  .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_ordering">Ordenar</label>
+              <select
+                id="f_ordering"
+                value={filters.ordering}
+                onChange={(e) => setFilters((p) => ({ ...p, ordering: e.target.value }))}
+                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+              >
+                <option value="-flight_date">Fecha (desc)</option>
+                <option value="flight_date">Fecha (asc)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_search">Buscar folio</label>
+              <input
+                id="f_search"
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+                placeholder="Número de folio"
+                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+              />
+            </div>
+          </div>
+          <div className="px-4 sm:px-6 pb-4">
+            <button
+              type="button"
+              onClick={() => setFilters({ date_from: '', date_to: '', flight_order_id: '', operator_id: '', ordering: '-flight_date', search: '' })}
+              className="text-xs font-bold text-gray-500 hover:text-slate-800 dark:hover:text-gray-200 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+
+        {loading && (
+          <div className="mb-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            Cargando...
+          </div>
+        )}
+
         {/* Tabla en desktop / Cards en móvil */}
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
           {/* Vista de tabla - desktop */}
@@ -101,24 +294,30 @@ export default function BitacoraVueloPage() {
                 {bitacoras.map((bitacora) => (
                   <tr key={bitacora.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-[#2c528c]">{bitacora.codigo}</span>
-                      <p className="text-[10px] text-gray-400 uppercase">Orden: {bitacora.ordenNumero}</p>
+                      <span className="text-sm font-bold text-[#2c528c]">{bitacora.log_number}</span>
+                      <p className="text-[10px] text-gray-400 uppercase">Orden: {bitacora.flight_order?.order_number}</p>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-300">{formatDate(bitacora.fecha)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-300">{formatDate(bitacora.flight_date)}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="size-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                          {bitacora.operadorIniciales}
+                          {String(bitacora.operator?.full_name || `${bitacora.operator?.first_name ?? ''} ${bitacora.operator?.last_name ?? ''}`)
+                            .trim()
+                            .split(' ')
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((s) => s[0]?.toUpperCase())
+                            .join('')}
                         </div>
-                        <span className="text-sm text-slate-700 dark:text-gray-200">{bitacora.operadorNombre}</span>
+                        <span className="text-sm text-slate-700 dark:text-gray-200">{bitacora.operator?.full_name || `${bitacora.operator?.first_name ?? ''} ${bitacora.operator?.last_name ?? ''}`}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 text-[10px] font-bold bg-blue-50 text-blue-700 rounded-md dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-                        {bitacora.rpa1Registro || 'N/A'}
+                        {bitacora.rpa1_registration || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-center font-medium text-slate-700 dark:text-gray-200">{bitacora.tiempoVuelo}</td>
+                    <td className="px-6 py-4 text-sm text-center font-medium text-slate-700 dark:text-gray-200">{bitacora.flight_duration_minutes}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Link 
@@ -157,31 +356,37 @@ export default function BitacoraVueloPage() {
               <div key={bitacora.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <span className="text-sm font-bold text-[#2c528c]">{bitacora.codigo}</span>
-                    <p className="text-[10px] text-gray-400 uppercase">Orden: {bitacora.ordenNumero}</p>
+                    <span className="text-sm font-bold text-[#2c528c]">{bitacora.log_number}</span>
+                    <p className="text-[10px] text-gray-400 uppercase">Orden: {bitacora.flight_order?.order_number}</p>
                   </div>
                   <span className="px-2 py-1 text-[10px] font-bold bg-blue-50 text-blue-700 rounded-md dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-                    {bitacora.rpa1Registro || 'N/A'}
+                    {bitacora.rpa1_registration || 'N/A'}
                   </span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-semibold">Fecha</p>
-                    <p className="text-slate-700 dark:text-gray-200">{formatDate(bitacora.fecha)}</p>
+                    <p className="text-slate-700 dark:text-gray-200">{formatDate(bitacora.flight_date)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-semibold">Tiempo</p>
-                    <p className="text-slate-700 dark:text-gray-200 font-medium">{bitacora.tiempoVuelo} min</p>
+                    <p className="text-slate-700 dark:text-gray-200 font-medium">{bitacora.flight_duration_minutes} min</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="size-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                      {bitacora.operadorIniciales}
+                      {String(bitacora.operator?.full_name || `${bitacora.operator?.first_name ?? ''} ${bitacora.operator?.last_name ?? ''}`)
+                        .trim()
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((s) => s[0]?.toUpperCase())
+                        .join('')}
                     </div>
-                    <span className="text-sm text-slate-700 dark:text-gray-200">{bitacora.operadorNombre}</span>
+                    <span className="text-sm text-slate-700 dark:text-gray-200">{bitacora.operator?.full_name || `${bitacora.operator?.first_name ?? ''} ${bitacora.operator?.last_name ?? ''}`}</span>
                   </div>
                   
                   <div className="flex items-center gap-1">
@@ -231,7 +436,7 @@ export default function BitacoraVueloPage() {
         onClose={() => setDeleteModal({ open: false, bitacora: null })}
         onConfirm={confirmDelete}
         title="Eliminar Bitácora"
-        description={`¿Está seguro que desea eliminar la bitácora "${deleteModal.bitacora?.codigo}"? Esta acción no se puede deshacer.`}
+        description={`¿Está seguro que desea eliminar la bitácora "${deleteModal.bitacora?.log_number}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
       />

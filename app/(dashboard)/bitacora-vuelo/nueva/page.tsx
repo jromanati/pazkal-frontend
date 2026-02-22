@@ -8,7 +8,10 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
-import { ordenesVueloMock, operadoresMock, rpasDisponiblesMock } from '@/lib/mock-data'
+import { rpasDisponiblesMock } from '@/lib/mock-data'
+import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
+import { UsersService, type User } from '@/services/users.service'
+import { FlightLogsService } from '@/services/flights-logs.service'
 import { canAction } from '@/lib/permissions'
 
 export default function NuevaBitacoraPage() {
@@ -16,6 +19,9 @@ export default function NuevaBitacoraPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [flightOrders, setFlightOrders] = useState<FlightOrder[]>([])
+  const [operators, setOperators] = useState<User[]>([])
 
   useEffect(() => {
     setMounted(true)
@@ -24,6 +30,7 @@ export default function NuevaBitacoraPage() {
   const canCreate = mounted && canAction('bitacora_vuelo', 'create')
   
   const [formData, setFormData] = useState({
+    folio: '',
     ordenN: '',
     fecha: '',
     lugar: '',
@@ -49,16 +56,124 @@ export default function NuevaBitacoraPage() {
     { bateria: 'BATERÍA 3', inicio: '', termino: '' }
   ])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!mounted || !canCreate) return
+
+    const load = async () => {
+      const [ordersRes, usersRes] = await Promise.all([
+        FlightOrdersService.listOrders({ ordering: '-scheduled_date' }),
+        UsersService.getUsers({ page: 1, page_size: 1000 }),
+      ])
+
+      if (ordersRes.success && ordersRes.data) {
+        const data: unknown = ordersRes.data
+        if (Array.isArray(data)) {
+          setFlightOrders(data)
+        } else if (data && typeof data === 'object' && Array.isArray((data as any).results)) {
+          setFlightOrders((data as any).results)
+        }
+      }
+
+      if (usersRes.success && usersRes.data?.results) {
+        setOperators(usersRes.data.results)
+      }
+    }
+
+    load()
+  }, [mounted, canCreate])
+
+  const toApiTime = (t: string) => {
+    if (!t) return undefined
+    if (t.includes('Z')) return t
+    const padded = t.length === 5 ? `${t}:00` : t
+    return `${padded}.000Z`
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!canCreate) return
 
-    toast({
-      title: "Bitácora creada",
-      description: "La bitácora de vuelo ha sido creada exitosamente.",
-    })
-    router.push('/bitacora-vuelo')
+    if (!formData.folio.trim()) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe ingresar el folio de la bitácora.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.ordenN) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar una orden de vuelo.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.operador) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar un operador.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.fecha) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar una fecha de vuelo.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const payload = {
+        flight_order_id: Number(formData.ordenN),
+        log_number: formData.folio.trim(),
+        operator_id: Number(formData.operador),
+        flight_date: formData.fecha,
+        copilot_name: formData.copiloto,
+        location: formData.lugar,
+        rpa1_model: formData.rpa1Modelo,
+        rpa1_registration: formData.rpa1Registro,
+        rpa2_model: formData.rpa2Modelo,
+        rpa2_registration: formData.rpa2Registro,
+        battery1_start: baterias[0]?.inicio ? Number(baterias[0].inicio) : undefined,
+        battery1_end: baterias[0]?.termino ? Number(baterias[0].termino) : undefined,
+        battery2_start: baterias[1]?.inicio ? Number(baterias[1].inicio) : undefined,
+        battery2_end: baterias[1]?.termino ? Number(baterias[1].termino) : undefined,
+        battery3_start: baterias[2]?.inicio ? Number(baterias[2].inicio) : undefined,
+        battery3_end: baterias[2]?.termino ? Number(baterias[2].termino) : undefined,
+        departure_time_utc: toApiTime(formData.utcSalida),
+        arrival_time_utc: toApiTime(formData.utcLlegada),
+        departure_time_local: toApiTime(formData.gtmSalida),
+        arrival_time_local: toApiTime(formData.gtmLlegada),
+        flight_duration_minutes: formData.tiempoVuelo ? Number(formData.tiempoVuelo) : undefined,
+        aerial_work_type: formData.trabajoAereo,
+        activity_description: formData.actividadRealizada,
+        comments: formData.comentarios,
+      }
+
+      const res = await FlightLogsService.createLog(payload)
+      if (!res.success || !res.data) {
+        toast({
+          title: 'No se pudo crear',
+          description: res.error || 'Error al crear la bitácora de vuelo.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({
+        title: 'Bitácora creada',
+        description: `La bitácora "${res.data.log_number}" ha sido creada exitosamente.`,
+      })
+      router.push('/bitacora-vuelo')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -114,6 +229,17 @@ export default function NuevaBitacoraPage() {
             </div>
             <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Folio</label>
+                <input
+                  type="text"
+                  name="folio"
+                  value={formData.folio}
+                  onChange={handleInputChange}
+                  placeholder="Folio de bitácora"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Orden N°</label>
                 <select 
                   name="ordenN"
@@ -122,8 +248,8 @@ export default function NuevaBitacoraPage() {
                   className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
                 >
                   <option value="">Seleccionar Orden</option>
-                  {ordenesVueloMock.map(orden => (
-                    <option key={orden.id} value={orden.codigo}>{orden.codigo}</option>
+                  {flightOrders.map((orden) => (
+                    <option key={orden.id} value={orden.id}>{orden.order_number}</option>
                   ))}
                 </select>
               </div>
@@ -157,9 +283,11 @@ export default function NuevaBitacoraPage() {
                   className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
                 >
                   <option value="">Seleccionar Operador</option>
-                  {operadoresMock.map(op => (
-                    <option key={op.id} value={op.id}>{op.nombre}</option>
-                  ))}
+                  {operators
+                    .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+                    .map((op) => (
+                      <option key={op.id} value={op.id}>{op.first_name} {op.last_name}</option>
+                    ))}
                 </select>
               </div>
               <div>

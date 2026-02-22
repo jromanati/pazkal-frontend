@@ -8,7 +8,10 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
-import { ordenesVueloMock, operadoresMock, tiposTrabajoAereoMock, type OrdenVuelo } from '@/lib/mock-data'
+import { tiposTrabajoAereoMock } from '@/lib/mock-data'
+import { CompanyService, type CompanyListItem } from '@/services/company.service'
+import { UsersService, type User } from '@/services/users.service'
+import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@/services/flight-orders.service'
 import { canAction, canView } from '@/lib/permissions'
 
 export default function EditarOrdenVueloPage() {
@@ -17,10 +20,15 @@ export default function EditarOrdenVueloPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
-  const [orden, setOrden] = useState<OrdenVuelo | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [orden, setOrden] = useState<FlightOrder | null>(null)
+  const [companies, setCompanies] = useState<CompanyListItem[]>([])
+  const [operators, setOperators] = useState<User[]>([])
   const canRead = mounted && canView('ordenes_vuelo')
   const canUpdate = mounted && canAction('ordenes_vuelo', 'update')
   const [formData, setFormData] = useState({
+    empresa: '',
+    numeroOrden: '',
     piloto: '',
     observador: '',
     rpa: '',
@@ -34,48 +42,173 @@ export default function EditarOrdenVueloPage() {
     areaGeografica: '',
     areasPeligrosas: '',
     gerenteResponsable: '',
-    estado: '' as OrdenVuelo['estado'] | ''
+    estado: 'PENDING' as FlightOrderStatus,
   })
 
   useEffect(() => {
     setMounted(true)
-
-    const ordenEncontrada = ordenesVueloMock.find(o => o.id === params.id)
-    if (ordenEncontrada) {
-      setOrden(ordenEncontrada)
-      setFormData({
-        piloto: ordenEncontrada.pilotoId,
-        observador: ordenEncontrada.observador || '',
-        rpa: ordenEncontrada.rpa || '',
-        tipoVuelo: ordenEncontrada.tipoVuelo || '',
-        fecha: ordenEncontrada.fecha,
-        trabajoAereo: ordenEncontrada.trabajoAereo || '',
-        lugar: ordenEncontrada.lugar,
-        trabajo: ordenEncontrada.trabajo,
-        utcActividad: ordenEncontrada.utcActividad || '',
-        notam: ordenEncontrada.notam || '',
-        areaGeografica: ordenEncontrada.areaGeografica || '',
-        areasPeligrosas: ordenEncontrada.areasPeligrosas || '',
-        gerenteResponsable: ordenEncontrada.gerenteResponsable || '',
-        estado: ordenEncontrada.estado
-      })
-    }
   }, [params.id])
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const loadLists = async () => {
+      const [companiesRes, usersRes] = await Promise.all([
+        CompanyService.getCompanies({ page: 1, page_size: 1000 }),
+        UsersService.getUsers({ page: 1, page_size: 1000 }),
+      ])
+
+      if (companiesRes.success && companiesRes.data?.results) {
+        setCompanies(companiesRes.data.results)
+      }
+
+      if (usersRes.success && usersRes.data?.results) {
+        setOperators(usersRes.data.results)
+      }
+    }
+
+    loadLists()
+  }, [mounted, canRead])
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const orderId = Array.isArray(params.id) ? params.id[0] : params.id
+    if (!orderId) {
+      setOrden(null)
+      return
+    }
+
+    const loadOrder = async () => {
+      setLoading(true)
+      try {
+        const res = await FlightOrdersService.getOrder(orderId)
+        if (!res.success || !res.data) {
+          setOrden(null)
+          return
+        }
+
+        const o = res.data
+        setOrden(o)
+        setFormData({
+          empresa: String(o.company?.id ?? ''),
+          numeroOrden: o.order_number ?? '',
+          piloto: String(o.operator?.id ?? ''),
+          observador: o.observer_name ?? '',
+          rpa: o.rpa_identifier ?? '',
+          tipoVuelo: o.flight_type ?? '',
+          fecha: o.scheduled_date ?? '',
+          trabajoAereo: o.aerial_work_type ?? '',
+          lugar: o.location ?? '',
+          trabajo: o.work_description ?? '',
+          utcActividad: o.utc_activity_time ?? '',
+          notam: o.notam_reference ?? '',
+          areaGeografica: o.geographic_area ?? '',
+          areasPeligrosas: o.restricted_areas ?? '',
+          gerenteResponsable: o.responsible_manager ?? '',
+          estado: o.status,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadOrder()
+  }, [mounted, canRead, params.id])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const operadoresFiltrados = operators
+    .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+    .filter((u) => {
+      if (!formData.empresa) return true
+      return (u.companies || []).some((c) => String(c.id) === String(formData.empresa))
+    })
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!canUpdate) return
 
-    toast({
-      title: "Orden actualizada",
-      description: `La orden "${orden?.codigo}" ha sido actualizada exitosamente.`,
-    })
-    router.push('/ordenes-vuelo')
+    const orderId = Array.isArray(params.id) ? params.id[0] : params.id
+    if (!orderId) return
+
+    if (!formData.empresa) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar una empresa.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.numeroOrden.trim()) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe ingresar el número de orden.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.piloto) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar un piloto (operador).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await FlightOrdersService.updateOrder(orderId, {
+        company_id: Number(formData.empresa),
+        order_number: formData.numeroOrden.trim(),
+        operator_id: Number(formData.piloto),
+        observer_name: formData.observador,
+        rpa_identifier: formData.rpa,
+        flight_type: formData.tipoVuelo,
+        scheduled_date: formData.fecha,
+        aerial_work_type: formData.trabajoAereo,
+        location: formData.lugar,
+        work_description: formData.trabajo,
+        utc_activity_time: formData.utcActividad,
+        notam_reference: formData.notam,
+        geographic_area: formData.areaGeografica,
+        restricted_areas: formData.areasPeligrosas,
+        responsible_manager: formData.gerenteResponsable,
+        status: formData.estado,
+      })
+
+      if (!res.success || !res.data) {
+        toast({
+          title: 'No se pudo actualizar',
+          description: res.error || 'Error al actualizar la orden de vuelo.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({
+        title: 'Orden actualizada',
+        description: `La orden "${res.data.order_number}" ha sido actualizada exitosamente.`,
+      })
+      router.push('/ordenes-vuelo')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (mounted && !canRead) {
+    return (
+      <>
+        <Header icon="assignment" title="Órdenes de Vuelo" onMenuClick={toggle} />
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para acceder a esta sección.</p>
+        </div>
+      </>
+    )
   }
 
   if (!orden) {
@@ -91,7 +224,7 @@ export default function EditarOrdenVueloPage() {
 
   return (
     <>
-      <Header icon="assignment" title={`Editar: ${orden.codigo}`} onMenuClick={toggle} />
+      <Header icon="assignment" title={`Editar: ${orden.order_number}`} onMenuClick={toggle} />
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
         {/* Breadcrumb */}
@@ -105,7 +238,7 @@ export default function EditarOrdenVueloPage() {
             <li>
               <div className="flex items-center">
                 <span className="material-symbols-outlined text-sm mx-1">chevron_right</span>
-                <span className="text-slate-400">Editar {orden.codigo}</span>
+                <span className="text-slate-400">Editar {orden.order_number}</span>
               </div>
             </li>
           </ol>
@@ -115,137 +248,176 @@ export default function EditarOrdenVueloPage() {
         <div className="mb-6 lg:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-gray-100">Editar Orden de Vuelo</h2>
           <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-1">
-            Modifique los detalles de la orden de vuelo {orden.codigo}.
+            Modifique los detalles de la orden de vuelo {orden.order_number}.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <fieldset disabled={!canUpdate} className="contents">
-          {/* Estado */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#2c528c]">flag</span>
-              <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Estado de la Orden</h3>
-            </div>
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="max-w-xs">
-                <label htmlFor="estado" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  Estado actual
-                </label>
-                <select
-                  id="estado"
-                  name="estado"
-                  value={formData.estado}
-                  onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="pendiente">Pendiente</option>
-                  <option value="en_vuelo">En Vuelo</option>
-                  <option value="completado">Completado</option>
-                  <option value="cancelado">Cancelado</option>
-                </select>
+            {/* Estado */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+              <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#2c528c]">flag</span>
+                <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Estado de la Orden</h3>
+              </div>
+              <div className="p-4 sm:p-6 lg:p-8">
+                <div className="max-w-xs">
+                  <label htmlFor="estado" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Estado actual
+                  </label>
+                  <select
+                    id="estado"
+                    name="estado"
+                    value={formData.estado}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    <option value="PENDING">Pendiente</option>
+                    <option value="IN_FLIGHT">En vuelo</option>
+                    <option value="COMPLETED">Completado</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Información General */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#2c528c]">info</span>
-              <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Información General</h3>
+            {/* Información General */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+              <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#2c528c]">info</span>
+                <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Información General</h3>
+              </div>
+              <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div>
+                  <label htmlFor="empresa" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Empresa
+                  </label>
+                  <select
+                    id="empresa"
+                    name="empresa"
+                    value={formData.empresa}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData((prev) => ({ ...prev, empresa: value, piloto: '' }))
+                    }}
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    <option value="">Seleccione una empresa</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="numeroOrden" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Número de orden
+                  </label>
+                  <input
+                    type="text"
+                    id="numeroOrden"
+                    name="numeroOrden"
+                    value={formData.numeroOrden}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="piloto" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Piloto
+                  </label>
+                  <select
+                    id="piloto"
+                    name="piloto"
+                    value={formData.piloto}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    <option value="">Seleccione un operador</option>
+                    {operadoresFiltrados.map((op) => (
+                      <option key={op.id} value={op.id}>{op.first_name} {op.last_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="observador" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Observador
+                  </label>
+                  <input
+                    type="text"
+                    id="observador"
+                    name="observador"
+                    value={formData.observador}
+                    onChange={handleChange}
+                    placeholder="Nombre del observador"
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="rpa" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    RPA
+                  </label>
+                  <input
+                    type="text"
+                    id="rpa"
+                    name="rpa"
+                    value={formData.rpa}
+                    onChange={handleChange}
+                    placeholder="Identificación del RPA"
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="tipoVuelo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Tipo de vuelo
+                  </label>
+                  <input
+                    type="text"
+                    id="tipoVuelo"
+                    name="tipoVuelo"
+                    value={formData.tipoVuelo}
+                    onChange={handleChange}
+                    placeholder="Ej: Fotogrametría"
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="fecha" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Fecha
+                  </label>
+                  <input
+                    type="date"
+                    id="fecha"
+                    name="fecha"
+                    value={formData.fecha}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="trabajoAereo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                    Trabajo aéreo
+                  </label>
+                  <select
+                    id="trabajoAereo"
+                    name="trabajoAereo"
+                    value={formData.trabajoAereo}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    <option value="">Seleccione tipo de trabajo</option>
+                    {tiposTrabajoAereoMock.map((tipo) => (
+                      <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <div>
-                <label htmlFor="piloto" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  Piloto
-                </label>
-                <select
-                  id="piloto"
-                  name="piloto"
-                  value={formData.piloto}
-                  onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Seleccione un operador</option>
-                  {operadoresMock.map((op) => (
-                    <option key={op.id} value={op.id}>{op.nombre}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="observador" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  Observador
-                </label>
-                <input
-                  type="text"
-                  id="observador"
-                  name="observador"
-                  value={formData.observador}
-                  onChange={handleChange}
-                  placeholder="Nombre del observador"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="rpa" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  RPA
-                </label>
-                <input
-                  type="text"
-                  id="rpa"
-                  name="rpa"
-                  value={formData.rpa}
-                  onChange={handleChange}
-                  placeholder="Identificación del RPA"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="tipoVuelo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  Tipo de vuelo
-                </label>
-                <input
-                  type="text"
-                  id="tipoVuelo"
-                  name="tipoVuelo"
-                  value={formData.tipoVuelo}
-                  onChange={handleChange}
-                  placeholder="Ej: Fotogrametría"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="fecha" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  Fecha
-                </label>
-                <input
-                  type="date"
-                  id="fecha"
-                  name="fecha"
-                  value={formData.fecha}
-                  onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="trabajoAereo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
-                  Trabajo aéreo
-                </label>
-                <select
-                  id="trabajoAereo"
-                  name="trabajoAereo"
-                  value={formData.trabajoAereo}
-                  onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Seleccione tipo de trabajo</option>
-                  {tiposTrabajoAereoMock.map((tipo) => (
-                    <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
 
           {/* Detalles de Operación y Zona */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">

@@ -11,6 +11,11 @@ export interface PaginatedResponse<T> {
     results: T[]
 }
 
+export interface CredentialImageResponse {
+    image_url: string
+    has_image: boolean
+}
+
 export interface UserCompany {
     id: number
     name: string
@@ -67,6 +72,7 @@ export interface CreateUserPayload {
     first_name: string
     last_name: string
     phone: string
+    is_superuser: boolean
     is_staff: boolean
     company_ids: number[]
     group_name: string
@@ -144,6 +150,21 @@ export class UsersService {
 
     static async deleteUser(userId: number | string): Promise<ApiResponse<unknown>> {
         return apiClient.delete<unknown>(`users/${userId}/`)
+    }
+
+    static async uploadCredentialImage(
+        userId: number | string,
+        image: File,
+    ): Promise<ApiResponse<unknown>> {
+        const form = new FormData()
+        form.append('image', image)
+        return apiClient.post<unknown>(`users/${userId}/credential-image/`, form)
+    }
+
+    static async getCredentialImage(
+        userId: number | string,
+    ): Promise<ApiResponse<CredentialImageResponse>> {
+        return apiClient.get<CredentialImageResponse>(`users/${userId}/credential-image/`)
     }
 }
 

@@ -8,7 +8,10 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
-import { operadoresMock, tiposTrabajoAereoMock } from '@/lib/mock-data'
+import { tiposTrabajoAereoMock } from '@/lib/mock-data'
+import { CompanyService, type CompanyListItem } from '@/services/company.service'
+import { UsersService, type User } from '@/services/users.service'
+import { FlightOrdersService, type FlightOrderStatus } from '@/services/flight-orders.service'
 import { canAction } from '@/lib/permissions'
 
 export default function NuevaOrdenVueloPage() {
@@ -16,6 +19,9 @@ export default function NuevaOrdenVueloPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [companies, setCompanies] = useState<CompanyListItem[]>([])
+  const [operators, setOperators] = useState<User[]>([])
 
   useEffect(() => {
     setMounted(true)
@@ -23,6 +29,8 @@ export default function NuevaOrdenVueloPage() {
 
   const canCreate = mounted && canAction('ordenes_vuelo', 'create')
   const [formData, setFormData] = useState({
+    empresa: '',
+    numeroOrden: '',
     piloto: '',
     observador: '',
     rpa: '',
@@ -35,23 +43,110 @@ export default function NuevaOrdenVueloPage() {
     notam: '',
     areaGeografica: '',
     areasPeligrosas: '',
-    gerenteResponsable: ''
+    gerenteResponsable: '',
+    estado: 'PENDING' as FlightOrderStatus,
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!mounted || !canCreate) return
+
+    const load = async () => {
+      const [companiesRes, usersRes] = await Promise.all([
+        CompanyService.getCompanies({ page: 1, page_size: 1000 }),
+        UsersService.getUsers({ page: 1, page_size: 1000 }),
+      ])
+
+      if (companiesRes.success && companiesRes.data?.results) {
+        setCompanies(companiesRes.data.results)
+      }
+
+      if (usersRes.success && usersRes.data?.results) {
+        setOperators(usersRes.data.results)
+      }
+    }
+
+    load()
+  }, [mounted, canCreate])
+
+  const operadoresFiltrados = operators
+    .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+    .filter((u) => {
+      if (!formData.empresa) return true
+      return (u.companies || []).some((c) => String(c.id) === String(formData.empresa))
+    })
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!canCreate) return
 
-    toast({
-      title: "Orden de vuelo creada",
-      description: "La orden de vuelo ha sido creada exitosamente.",
-    })
-    router.push('/ordenes-vuelo')
+    if (!formData.empresa) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar una empresa.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.numeroOrden.trim()) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe ingresar el número de orden.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.piloto) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar un piloto (operador).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await FlightOrdersService.createOrder({
+        company_id: Number(formData.empresa),
+        order_number: formData.numeroOrden.trim(),
+        operator_id: Number(formData.piloto),
+        observer_name: formData.observador,
+        rpa_identifier: formData.rpa,
+        flight_type: formData.tipoVuelo,
+        scheduled_date: formData.fecha,
+        aerial_work_type: formData.trabajoAereo,
+        location: formData.lugar,
+        work_description: formData.trabajo,
+        utc_activity_time: formData.utcActividad,
+        notam_reference: formData.notam,
+        geographic_area: formData.areaGeografica,
+        restricted_areas: formData.areasPeligrosas,
+        responsible_manager: formData.gerenteResponsable,
+        status: formData.estado,
+      })
+
+      if (!res.success || !res.data) {
+        toast({
+          title: 'No se pudo crear la orden',
+          description: res.error || 'Error al crear la orden de vuelo.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({
+        title: 'Orden de vuelo creada',
+        description: `La orden "${res.data.order_number}" ha sido creada exitosamente.`,
+      })
+      router.push('/ordenes-vuelo')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -100,6 +195,40 @@ export default function NuevaOrdenVueloPage() {
             </div>
             <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div>
+                <label htmlFor="empresa" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                  Empresa
+                </label>
+                <select
+                  id="empresa"
+                  name="empresa"
+                  value={formData.empresa}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setFormData((prev) => ({ ...prev, empresa: value, piloto: '' }))
+                  }}
+                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <option value="">Seleccione una empresa</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="numeroOrden" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                  Número de orden
+                </label>
+                <input
+                  type="text"
+                  id="numeroOrden"
+                  name="numeroOrden"
+                  value={formData.numeroOrden}
+                  onChange={handleChange}
+                  placeholder="Ej: OV-0001"
+                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                />
+              </div>
+              <div>
                 <label htmlFor="piloto" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
                   Piloto
                 </label>
@@ -111,9 +240,25 @@ export default function NuevaOrdenVueloPage() {
                   className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
                 >
                   <option value="">Seleccione un operador</option>
-                  {operadoresMock.map((op) => (
-                    <option key={op.id} value={op.id}>{op.nombre}</option>
+                  {operadoresFiltrados.map((op) => (
+                    <option key={op.id} value={op.id}>{op.first_name} {op.last_name}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="estado" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                  Estado
+                </label>
+                <select
+                  id="estado"
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleChange}
+                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <option value="PENDING">Pendiente</option>
+                  <option value="IN_FLIGHT">En vuelo</option>
+                  <option value="COMPLETED">Completado</option>
                 </select>
               </div>
               <div>

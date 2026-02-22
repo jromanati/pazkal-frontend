@@ -176,7 +176,7 @@ export default function EditarUsuarioPage() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
-  const validGroups = ['Gerente', 'Operador', 'Visualizador'] as const
+  const validGroups = ['Gerente', 'Visualizador'] as const
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [modalEmpresas, setModalEmpresas] = useState(false)
   const [formData, setFormData] = useState({
@@ -266,7 +266,6 @@ export default function EditarUsuarioPage() {
       const mappedGroups: Record<string, (typeof validGroups)[number]> = {
         gerente: 'Gerente',
         gerencia: 'Gerente',
-        operador: 'Operador',
         visualizador: 'Visualizador',
       }
       const groupName = mappedGroups[rawGroupName.toLowerCase()] ?? rawGroupName
@@ -377,7 +376,6 @@ export default function EditarUsuarioPage() {
       const mapped: Record<string, (typeof validGroups)[number]> = {
         gerente: 'Gerente',
         gerencia: 'Gerente',
-        operador: 'Operador',
         visualizador: 'Visualizador',
       }
       return mapped[g.toLowerCase()] ?? g
@@ -754,94 +752,6 @@ export default function EditarUsuarioPage() {
                     </p>
                   </div>
                 )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <label htmlFor="profile.fecha_otorgamiento_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Fecha otorgamiento credencial
-                  </label>
-                  <input
-                    id="profile.fecha_otorgamiento_credencial"
-                    name="profile.fecha_otorgamiento_credencial"
-                    type="date"
-                    value={formData.profile.fecha_otorgamiento_credencial}
-                    onChange={handleChange}
-                    required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="profile.fecha_vencimiento_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Fecha vencimiento credencial
-                  </label>
-                  <input
-                    id="profile.fecha_vencimiento_credencial"
-                    name="profile.fecha_vencimiento_credencial"
-                    type="date"
-                    value={formData.profile.fecha_vencimiento_credencial}
-                    onChange={handleChange}
-                    required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="profile.habilitaciones" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                  Habilitaciones (separadas por coma)
-                </label>
-                <input
-                  id="profile.habilitaciones"
-                  name="profile.habilitaciones"
-                  type="text"
-                  value={formData.profile.habilitaciones}
-                  onChange={handleChange}
-                  required
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <label htmlFor="profile.eficiencia_operativa" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Eficiencia operativa
-                  </label>
-                  <input
-                    id="profile.eficiencia_operativa"
-                    name="profile.eficiencia_operativa"
-                    type="date"
-                    value={formData.profile.eficiencia_operativa}
-                    onChange={handleChange}
-                    required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="profile.fecha_ultima_capacitacion" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Fecha última capacitación
-                  </label>
-                  <input
-                    id="profile.fecha_ultima_capacitacion"
-                    name="profile.fecha_ultima_capacitacion"
-                    type="date"
-                    value={formData.profile.fecha_ultima_capacitacion}
-                    onChange={handleChange}
-                    required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="profile.empresa_capacitadora" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                  Empresa capacitadora
-                </label>
-                <input
-                  id="profile.empresa_capacitadora"
-                  name="profile.empresa_capacitadora"
-                  type="text"
-                  value={formData.profile.empresa_capacitadora}
-                  onChange={handleChange}
-                  required
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
-                />
               </div>
             </div>
           </div>

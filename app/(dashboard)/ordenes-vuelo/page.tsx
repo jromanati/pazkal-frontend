@@ -6,13 +6,16 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
-import { ordenesVueloMock, type OrdenVuelo } from '@/lib/mock-data'
+import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@/services/flight-orders.service'
+import { CompanyService, type CompanyListItem } from '@/services/company.service'
+import { UsersService, type User } from '@/services/users.service'
 import { canAction, canView } from '@/lib/permissions'
 
 export default function OrdenesVueloPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -22,43 +25,62 @@ export default function OrdenesVueloPage() {
   const canCreate = mounted && canAction('ordenes_vuelo', 'create')
   const canUpdate = mounted && canAction('ordenes_vuelo', 'update')
   const canDelete = mounted && canAction('ordenes_vuelo', 'delete')
-  const [ordenes, setOrdenes] = useState<OrdenVuelo[]>(ordenesVueloMock)
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; orden: OrdenVuelo | null }>({
+  const [ordenes, setOrdenes] = useState<FlightOrder[]>([])
+  const [companies, setCompanies] = useState<CompanyListItem[]>([])
+  const [operators, setOperators] = useState<User[]>([])
+  const [filters, setFilters] = useState({
+    company_id: '',
+    operator_id: '',
+    date_from: '',
+    date_to: '',
+    status: '' as '' | FlightOrderStatus,
+    search: '',
+    ordering: '-scheduled_date',
+  })
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; orden: FlightOrder | null }>({
     open: false,
     orden: null
   })
 
-  const handleDelete = (orden: OrdenVuelo) => {
+  const handleDelete = (orden: FlightOrder) => {
     setDeleteModal({ open: true, orden })
   }
 
-  const confirmDelete = () => {
-    if (deleteModal.orden) {
-      const codigoOrden = deleteModal.orden.codigo
-      setOrdenes(ordenes.filter(o => o.id !== deleteModal.orden!.id))
+  const confirmDelete = async () => {
+    const orden = deleteModal.orden as unknown as FlightOrder | null
+    if (!orden) return
+
+    setLoading(true)
+    try {
+      const res = await FlightOrdersService.deleteOrder(orden.id)
+      if (!res.success) {
+        toast({
+          title: 'No se pudo eliminar',
+          description: res.error || 'Error al eliminar la orden.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       toast({
-        title: "Orden eliminada",
-        description: `La orden "${codigoOrden}" ha sido eliminada exitosamente.`,
+        title: 'Orden eliminada',
+        description: `La orden "${orden.order_number}" ha sido eliminada exitosamente.`,
       })
+      setOrdenes((prev) => prev.filter((o) => o.id !== orden.id))
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getEstadoBadge = (estado: OrdenVuelo['estado']) => {
-    const estilos = {
-      completado: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300',
-      en_vuelo: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-      pendiente: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
-      cancelado: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-    }
-    const etiquetas = {
-      completado: 'Completado',
-      en_vuelo: 'En Vuelo',
-      pendiente: 'Pendiente',
-      cancelado: 'Cancelado'
+  const getEstadoBadge = (estado: FlightOrder['status'], estadoDisplay?: string) => {
+    const estilos: Record<string, string> = {
+      COMPLETED: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+      IN_FLIGHT: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+      PENDING: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
     }
     return (
-      <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full ${estilos[estado]} text-[9px] sm:text-[10px] font-bold uppercase tracking-wider`}>
-        {etiquetas[estado]}
+      <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full ${estilos[estado] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'} text-[9px] sm:text-[10px] font-bold uppercase tracking-wider`}>
+        {estadoDisplay || estado}
       </span>
     )
   }
@@ -67,6 +89,70 @@ export default function OrdenesVueloPage() {
     const date = new Date(fecha)
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
   }
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const loadFiltersData = async () => {
+      const [companiesRes, usersRes] = await Promise.all([
+        CompanyService.getCompanies({ page: 1, page_size: 1000 }),
+        UsersService.getUsers({ page: 1, page_size: 1000 }),
+      ])
+
+      if (companiesRes.success && companiesRes.data?.results) {
+        setCompanies(companiesRes.data.results)
+      }
+
+      if (usersRes.success && usersRes.data?.results) {
+        const ops = usersRes.data.results.filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+        setOperators(ops)
+      }
+    }
+
+    loadFiltersData()
+  }, [mounted, canRead])
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const run = async () => {
+      setLoading(true)
+      try {
+        const res = await FlightOrdersService.listOrders({
+          company_id: filters.company_id ? Number(filters.company_id) : undefined,
+          operator_id: filters.operator_id ? Number(filters.operator_id) : undefined,
+          date_from: filters.date_from || undefined,
+          date_to: filters.date_to || undefined,
+          status: filters.status || undefined,
+          search: filters.search || undefined,
+          ordering: filters.ordering || undefined,
+        })
+
+        if (!res.success || !res.data) {
+          toast({
+            title: 'Error al cargar órdenes',
+            description: res.error || 'No se pudieron cargar las órdenes de vuelo.',
+            variant: 'destructive',
+          })
+          setOrdenes([])
+          return
+        }
+
+        const data: unknown = res.data
+        if (Array.isArray(data)) {
+          setOrdenes(data)
+        } else if (data && typeof data === 'object' && Array.isArray((data as any).results)) {
+          setOrdenes((data as any).results)
+        } else {
+          setOrdenes([])
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    run()
+  }, [mounted, canRead, filters.company_id, filters.operator_id, filters.date_from, filters.date_to, filters.status, filters.search, filters.ordering, toast])
 
   if (mounted && !canRead) {
     return (
@@ -101,6 +187,143 @@ export default function OrdenesVueloPage() {
           )}
         </div>
 
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4 sm:p-5 mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_company">
+                Empresa
+              </label>
+              <select
+                id="f_company"
+                value={filters.company_id}
+                onChange={(e) => setFilters((p) => ({ ...p, company_id: e.target.value }))}
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              >
+                <option value="">Todas</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_operator">
+                Operador
+              </label>
+              <select
+                id="f_operator"
+                value={filters.operator_id}
+                onChange={(e) => setFilters((p) => ({ ...p, operator_id: e.target.value }))}
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              >
+                <option value="">Todos</option>
+                {operators.map((u) => (
+                  <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_from">
+                Desde
+              </label>
+              <input
+                id="f_from"
+                type="date"
+                value={filters.date_from}
+                onChange={(e) => setFilters((p) => ({ ...p, date_from: e.target.value }))}
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_to">
+                Hasta
+              </label>
+              <input
+                id="f_to"
+                type="date"
+                value={filters.date_to}
+                onChange={(e) => setFilters((p) => ({ ...p, date_to: e.target.value }))}
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_status">
+                Estado
+              </label>
+              <select
+                id="f_status"
+                value={filters.status}
+                onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value as any }))}
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              >
+                <option value="">Todos</option>
+                <option value="PENDING">Pendiente</option>
+                <option value="IN_FLIGHT">En vuelo</option>
+                <option value="COMPLETED">Completado</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_search">
+                Buscar
+              </label>
+              <input
+                id="f_search"
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+                placeholder="Número de orden"
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_ordering">
+                Orden
+              </label>
+              <select
+                id="f_ordering"
+                value={filters.ordering}
+                onChange={(e) => setFilters((p) => ({ ...p, ordering: e.target.value }))}
+                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+              >
+                <option value="-scheduled_date">Fecha (desc)</option>
+                <option value="scheduled_date">Fecha (asc)</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setFilters({
+                  company_id: '',
+                  operator_id: '',
+                  date_from: '',
+                  date_to: '',
+                  status: '',
+                  search: '',
+                  ordering: '-scheduled_date',
+                })
+              }
+              className="text-xs font-bold text-gray-500 hover:text-slate-800 dark:hover:text-gray-200 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+
+        {loading && (
+          <div className="mb-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            Cargando...
+          </div>
+        )}
+
         {/* Tabla - Desktop */}
         <div className="hidden lg:block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -119,19 +342,25 @@ export default function OrdenesVueloPage() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {ordenes.map((orden) => (
                   <tr key={orden.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold text-[#2c528c]">{orden.codigo}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-[#2c528c]">{orden.order_number}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="size-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                          {orden.pilotoIniciales}
+                          {String(orden.operator?.full_name || `${orden.operator?.first_name ?? ''} ${orden.operator?.last_name ?? ''}`)
+                            .trim()
+                            .split(' ')
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((s) => s[0]?.toUpperCase())
+                            .join('')}
                         </div>
-                        <span className="text-sm font-medium text-slate-800 dark:text-gray-200">{orden.pilotoNombre}</span>
+                        <span className="text-sm font-medium text-slate-800 dark:text-gray-200">{orden.operator?.full_name || `${orden.operator?.first_name ?? ''} ${orden.operator?.last_name ?? ''}`}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{formatFecha(orden.fecha)}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{orden.lugar}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{orden.trabajo}</td>
-                    <td className="px-6 py-4">{getEstadoBadge(orden.estado)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{formatFecha(orden.scheduled_date)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{orden.location}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-gray-400">{orden.aerial_work_type || '-'}</td>
+                    <td className="px-6 py-4">{getEstadoBadge(orden.status, orden.status_display)}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Link
@@ -181,29 +410,35 @@ export default function OrdenesVueloPage() {
             <div key={orden.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="text-sm font-bold text-[#2c528c]">{orden.codigo}</p>
+                  <p className="text-sm font-bold text-[#2c528c]">{orden.order_number}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="size-6 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-600">
-                      {orden.pilotoIniciales}
+                      {String(orden.operator?.full_name || `${orden.operator?.first_name ?? ''} ${orden.operator?.last_name ?? ''}`)
+                        .trim()
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((s) => s[0]?.toUpperCase())
+                        .join('')}
                     </div>
-                    <span className="text-xs font-medium text-slate-800 dark:text-gray-200">{orden.pilotoNombre}</span>
+                    <span className="text-xs font-medium text-slate-800 dark:text-gray-200">{orden.operator?.full_name || `${orden.operator?.first_name ?? ''} ${orden.operator?.last_name ?? ''}`}</span>
                   </div>
                 </div>
-                {getEstadoBadge(orden.estado)}
+                {getEstadoBadge(orden.status, orden.status_display)}
               </div>
               
               <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                 <div>
                   <p className="text-gray-400 uppercase text-[10px] font-semibold">Fecha</p>
-                  <p className="text-slate-600 dark:text-gray-300">{formatFecha(orden.fecha)}</p>
+                  <p className="text-slate-600 dark:text-gray-300">{formatFecha(orden.scheduled_date)}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 uppercase text-[10px] font-semibold">Lugar</p>
-                  <p className="text-slate-600 dark:text-gray-300 truncate">{orden.lugar}</p>
+                  <p className="text-slate-600 dark:text-gray-300 truncate">{orden.location}</p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-gray-400 uppercase text-[10px] font-semibold">Trabajo</p>
-                  <p className="text-slate-600 dark:text-gray-300">{orden.trabajo}</p>
+                  <p className="text-slate-600 dark:text-gray-300">{orden.aerial_work_type || '-'}</p>
                 </div>
               </div>
 
@@ -252,7 +487,7 @@ export default function OrdenesVueloPage() {
         onClose={() => setDeleteModal({ open: false, orden: null })}
         onConfirm={confirmDelete}
         title="Eliminar orden de vuelo"
-        description={`¿Está seguro que desea eliminar la orden "${deleteModal.orden?.codigo}"? Esta acción no se puede deshacer.`}
+        description={`¿Está seguro que desea eliminar la orden "${deleteModal.orden?.order_number}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         variant="danger"
       />

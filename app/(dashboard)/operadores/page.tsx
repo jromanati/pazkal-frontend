@@ -6,7 +6,9 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
-import { operadoresMock, type Operador } from '@/lib/mock-data'
+import useSWR from 'swr'
+import { type Operador } from '@/lib/mock-data'
+import { UsersService, type PaginatedResponse, type User } from '@/services/users.service'
 import { canAction, canView } from '@/lib/permissions'
 
 export default function OperadoresPage() {
@@ -22,25 +24,82 @@ export default function OperadoresPage() {
   const canCreate = mounted && canAction('operadores', 'create')
   const canUpdate = mounted && canAction('operadores', 'update')
   const canDelete = mounted && canAction('operadores', 'delete')
-  const [operadores, setOperadores] = useState<Operador[]>(operadoresMock)
+  const [operadores, setOperadores] = useState<Operador[]>([])
+  const [page] = useState(1)
+  const [pageSize] = useState(100)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; operador: Operador | null }>({
     open: false,
     operador: null
   })
 
+  const fetchedUsers = async () => {
+    const response = await UsersService.getUsers({ page, page_size: pageSize })
+    if (!response.success || !response.data) return null
+    return response.data
+  }
+
+  const { data: users } = useSWR<PaginatedResponse<User> | null>(
+    ['users_operadores', page, pageSize],
+    fetchedUsers,
+  )
+
+  useEffect(() => {
+    if (!users?.results) return
+
+    const mapped: Operador[] = users.results
+      .filter((u) => {
+        const g = String(u.groups?.[0]?.name ?? '').trim().toLowerCase()
+        return g === 'operador'
+      })
+      .map((u) => {
+        const firstName = u.first_name ?? ''
+        const lastName = u.last_name ?? ''
+        const nombre = `${firstName} ${lastName}`.trim() || u.email
+        const iniciales = `${(firstName?.[0] || '').toUpperCase()}${(lastName?.[0] || '').toUpperCase()}` || '?'
+        const rut = u.profile?.rut ?? ''
+        const empresaId = String(u.companies?.[0]?.id ?? '')
+        const empresaNombre = u.companies?.[0]?.name ?? ''
+        return {
+          id: String(u.id),
+          nombre,
+          rut,
+          correo: u.email,
+          telefono: u.profile?.telefono ?? u.phone ?? '',
+          fechaNacimiento: u.profile?.fecha_nacimiento ?? '',
+          numeroCredencial: String(u.profile?.numero_credencial ?? ''),
+          empresaId,
+          empresaNombre,
+          iniciales,
+        }
+      })
+
+    setOperadores(mapped)
+  }, [users])
+
   const handleDelete = (operador: Operador) => {
     setDeleteModal({ open: true, operador })
   }
 
-  const confirmDelete = () => {
-    if (deleteModal.operador) {
-      const nombreOperador = deleteModal.operador.nombre
-      setOperadores(operadores.filter(o => o.id !== deleteModal.operador!.id))
+  const confirmDelete = async () => {
+    if (!deleteModal.operador) return
+
+    const operadorToDelete = deleteModal.operador
+    const response = await UsersService.deleteUser(operadorToDelete.id)
+    if (!response.success) {
       toast({
-        title: "Operador eliminado",
-        description: `El operador "${nombreOperador}" ha sido eliminado exitosamente.`,
+        title: 'Error al eliminar',
+        description: response.error || 'No se pudo eliminar el operador.',
+        variant: 'destructive',
       })
+      return
     }
+
+    setOperadores(operadores.filter(o => o.id !== operadorToDelete.id))
+    toast({
+      title: 'Operador eliminado',
+      description: `El operador "${operadorToDelete.nombre}" ha sido eliminado exitosamente.`,
+    })
+    setDeleteModal({ open: false, operador: null })
   }
 
   if (mounted && !canRead) {

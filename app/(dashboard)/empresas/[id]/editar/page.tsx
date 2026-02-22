@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { type Empresa } from '@/lib/mock-data'
-import { CompanyService } from '@/services/company.service'
+import { CompanyService, type CompanyDocumentItem, type CompanyDocumentType } from '@/services/company.service'
 import { canAction, canView } from '@/lib/permissions'
 
 type Tab = 'datos' | 'documentos'
@@ -135,9 +135,20 @@ export default function EditarEmpresaPage() {
     })
 
     if (!response.success) {
+      const formatDetailValue = (v: unknown) => {
+        if (Array.isArray(v)) return v.join(' ')
+        if (typeof v === 'string') return v
+        if (v === null || v === undefined) return ''
+        try {
+          return JSON.stringify(v)
+        } catch {
+          return String(v)
+        }
+      }
+
       const detailsText = response.details
         ? Object.entries(response.details)
-            .map(([k, v]) => `${k}: ${v.join(' ')}`)
+            .map(([k, v]) => `${k}: ${formatDetailValue(v)}`)
             .join('\n')
         : ''
       toast({
@@ -384,29 +395,166 @@ export default function EditarEmpresaPage() {
         )}
 
         {activeTab === 'documentos' && (
-          <DocumentosEmpresa onBack={() => setActiveTab('datos')} />
+          <DocumentosEmpresa
+            companyId={Array.isArray(params.id) ? params.id[0] : params.id}
+            canUpdate={canUpdate}
+            onBack={() => setActiveTab('datos')}
+          />
         )}
       </div>
     </>
   )
 }
 
-function DocumentosEmpresa({ onBack }: { onBack: () => void }) {
+function DocumentosEmpresa({
+  onBack,
+  companyId,
+  canUpdate,
+}: {
+  onBack: () => void
+  companyId: string | string[] | undefined
+  canUpdate: boolean
+}) {
   const router = useRouter()
+  const { toast } = useToast()
 
-  const documentos = [
-    { id: 'especificacion', label: 'Especificación de operación', icon: 'upload_file', desc: 'PDF, JPG o PNG (Máx 10MB)', uploaded: true },
-    { id: 'aoc', label: 'Certificado AOC', icon: 'verified_user', desc: 'Certificado de Operador Aéreo', uploaded: true },
-    { id: 'manual', label: 'Manual de operaciones', icon: 'menu_book', desc: 'Documento completo (PDF)', uploaded: false },
-    { id: 'sms', label: 'SMS', icon: 'security', desc: 'Safety Management System', uploaded: false },
-    { id: 'poliza', label: 'Póliza de seguros', icon: 'policy', desc: 'Vigente para el periodo actual', uploaded: true },
-    { id: 'jac', label: 'Resolucion JAC', icon: 'gavel', desc: 'Resolución Junta Aeronáutica', uploaded: false },
-    { id: 'equipos', label: 'Registros de equipo', icon: 'inventory_2', desc: 'Inventario y especificaciones', uploaded: false },
-    { id: 'autorizaciones', label: 'Autorizaciones de vuelo', icon: 'task', desc: 'Permisos vigentes DGAC', uploaded: true },
-    { id: 'kmz', label: 'KMZ', icon: 'map', desc: 'Archivos de georreferencia', uploaded: false },
-    { id: 'mandante', label: 'Carta de autorización mandante', icon: 'history_edu', desc: 'Poderes o mandatos vigentes', uploaded: false },
-    { id: 'especiales', label: 'Autorizaciones especiales', icon: 'workspace_premium', desc: 'Otros permisos específicos', uploaded: false },
+  const [loading, setLoading] = useState(false)
+  const [documents, setDocuments] = useState<CompanyDocumentItem[]>([])
+  const [expirationDates, setExpirationDates] = useState<Partial<Record<CompanyDocumentType, string>>>({})
+  const showExpirationDate = false
+
+  const companyIdValue = Array.isArray(companyId) ? companyId[0] : companyId
+
+  const documentTypes: { type: CompanyDocumentType; label: string; icon: string; desc: string }[] = [
+    { type: 'operations_spec', label: 'Especificación de operación', icon: 'upload_file', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'aoc_cert', label: 'Certificado AOC', icon: 'verified_user', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'ops_manual', label: 'Manual de operaciones', icon: 'menu_book', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'sms', label: 'SMS', icon: 'security', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'insurance', label: 'Póliza de seguros', icon: 'policy', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'jac_resolution', label: 'Resolución JAC', icon: 'gavel', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'equipment_records', label: 'Registros de equipo', icon: 'inventory_2', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'flight_auth', label: 'Autorizaciones de vuelo', icon: 'task', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'kmz', label: 'KMZ', icon: 'map', desc: 'KMZ - máx 10MB' },
+    { type: 'mandate_auth', label: 'Carta de autorización mandante', icon: 'history_edu', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'special_auth', label: 'Autorizaciones especiales', icon: 'workspace_premium', desc: 'PDF, JPG, PNG - máx 10MB' },
+    { type: 'aircraft_maint', label: 'Mantención de aeronave', icon: 'build_circle', desc: 'PDF, JPG, PNG - máx 10MB' },
   ]
+
+  const refresh = async () => {
+    if (!companyIdValue) return
+    setLoading(true)
+    try {
+      const res = await CompanyService.listCompanyDocuments(companyIdValue)
+      if (res.success && Array.isArray(res.data)) {
+        setDocuments(res.data)
+        return
+      }
+      toast({
+        title: 'Error al listar documentos',
+        description: res.error || 'No se pudieron cargar los documentos.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [companyIdValue])
+
+  const docByType = documents.reduce((acc, d) => {
+    acc[d.document_type] = d
+    return acc
+  }, {} as Record<string, CompanyDocumentItem>)
+
+  const downloadDocument = async (doc: CompanyDocumentItem) => {
+    const url = doc.file_url
+    if (!url) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(url, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        window.open(url, '_blank', 'noopener,noreferrer')
+        return
+      }
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = doc.original_filename || `${doc.document_type}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const deleteDocument = async (documentType: CompanyDocumentType) => {
+    if (!companyIdValue) return
+
+    setLoading(true)
+    try {
+      const res = await CompanyService.deleteCompanyDocument(companyIdValue, documentType)
+      if (!res.success) {
+        toast({
+          title: 'No se pudo eliminar',
+          description: res.error || 'Error al eliminar documento.',
+          variant: 'destructive',
+        })
+        return
+      }
+      toast({
+        title: 'Documento eliminado',
+        description: 'El documento fue eliminado correctamente.',
+      })
+      await refresh()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpload = async (documentType: CompanyDocumentType, file: File | null) => {
+    if (!companyIdValue || !file) return
+    if (!canUpdate) return
+
+    setLoading(true)
+    try {
+      const expiration_date = expirationDates[documentType]
+      const res = await CompanyService.uploadCompanyDocument(companyIdValue, {
+        document_type: documentType,
+        file,
+        expiration_date: expiration_date || undefined,
+      })
+
+      if (!res.success) {
+        toast({
+          title: 'No se pudo subir el documento',
+          description: res.error || 'Error al cargar documento.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({
+        title: 'Documento cargado',
+        description: 'El documento fue cargado correctamente.',
+      })
+      refresh()
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <>
@@ -417,54 +565,111 @@ function DocumentosEmpresa({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
+      {loading && (
+        <div className="mb-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+          <span className="material-symbols-outlined animate-spin">progress_activity</span>
+          Cargando...
+        </div>
+      )}
+
       <form className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {documentos.map((doc) => (
-            <div key={doc.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-bold text-slate-700 dark:text-gray-300">{doc.label}</label>
-                {doc.uploaded && (
-                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
-                    <span className="material-symbols-outlined text-sm">check_circle</span>
-                    Cargado
-                  </span>
+          {documentTypes.map((docType) => {
+            const doc = docByType[docType.type]
+            const uploaded = Boolean(doc)
+            const inputId = `file_${docType.type}`
+
+            return (
+              <div key={docType.type} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-gray-300">
+                    {doc?.document_type_display || docType.label}
+                  </label>
+                  {uploaded && (
+                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      Cargado
+                    </span>
+                  )}
+                </div>
+
+                <label
+                  htmlFor={canUpdate ? inputId : undefined}
+                  className={`border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center transition-all ${
+                    uploaded
+                      ? 'border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/10'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-[#2c528c] hover:bg-gray-50'
+                  } ${canUpdate ? 'cursor-pointer' : ''}`}
+                >
+                  <span className={`material-symbols-outlined mb-2 ${uploaded ? 'text-green-500' : 'text-gray-400'}`}>{docType.icon}</span>
+                  <p className="text-[11px] text-gray-500 mb-2">{docType.desc}</p>
+                  <button type="button" className="text-xs font-bold text-[#2c528c] hover:underline" disabled={!canUpdate}>
+                    {uploaded ? 'Reemplazar archivo' : 'Subir archivo'}
+                  </button>
+                </label>
+
+                {canUpdate && (
+                  <input
+                    id={inputId}
+                    type="file"
+                    accept={docType.type === 'kmz' ? '.kmz' : '.pdf,.png,.jpg,.jpeg'}
+                    className="hidden"
+                    onChange={(e) => handleUpload(docType.type, e.target.files?.[0] ?? null)}
+                    disabled={loading}
+                  />
+                )}
+
+                {uploaded && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-gray-500 truncate" title={doc.original_filename}>
+                        {doc.original_filename}
+                      </p>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => downloadDocument(doc)}
+                          className="text-xs font-bold text-[#2c528c] hover:underline"
+                        >
+                          Descargar
+                        </button>
+                        {canUpdate && (
+                          <button
+                            type="button"
+                            onClick={() => deleteDocument(docType.type)}
+                            className="text-xs font-bold text-red-600 hover:underline"
+                          >
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {showExpirationDate && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor={`exp_${docType.type}`}>
+                          Fecha de caducidad
+                        </label>
+                        <input
+                          className="w-full text-xs border-gray-200 dark:border-gray-700 dark:bg-gray-800 rounded focus:ring-[#2c528c] focus:border-[#2c528c]"
+                          id={`exp_${docType.type}`}
+                          type="date"
+                          disabled={!canUpdate}
+                          value={expirationDates[docType.type] ?? (doc?.expiration_date ?? '')}
+                          onChange={(e) =>
+                            setExpirationDates((prev) => ({
+                              ...prev,
+                              [docType.type]: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              <div className={`border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                doc.uploaded 
-                  ? 'border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/10' 
-                  : 'border-gray-200 dark:border-gray-700 hover:border-[#2c528c] hover:bg-gray-50'
-              }`}>
-                <span className={`material-symbols-outlined mb-2 ${doc.uploaded ? 'text-green-500' : 'text-gray-400'}`}>{doc.icon}</span>
-                <p className="text-[11px] text-gray-500 mb-2">{doc.desc}</p>
-                <button type="button" className="text-xs font-bold text-[#2c528c] hover:underline">
-                  {doc.uploaded ? 'Reemplazar archivo' : 'Subir archivo'}
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {/* Mantención de aeronave con fecha */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
-            <label className="block text-sm font-bold text-slate-700 dark:text-gray-300 mb-3">Mantención de aeronave</label>
-            <div className="space-y-4">
-              <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#2c528c] hover:bg-gray-50 transition-all">
-                <span className="material-symbols-outlined text-gray-400 mb-2">build_circle</span>
-                <button type="button" className="text-xs font-bold text-[#2c528c] hover:underline">Subir archivo</button>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="caducidad">
-                  Fecha de caducidad
-                </label>
-                <input 
-                  className="w-full text-xs border-gray-200 dark:border-gray-700 dark:bg-gray-800 rounded focus:ring-[#2c528c] focus:border-[#2c528c]" 
-                  id="caducidad" 
-                  type="date"
-                  defaultValue="2025-12-31"
-                />
-              </div>
-            </div>
-          </div>
+            )
+          })}
         </div>
 
         {/* Footer */}
@@ -477,9 +682,6 @@ function DocumentosEmpresa({ onBack }: { onBack: () => void }) {
             Anterior
           </button>
           <div className="flex gap-4">
-            <button type="button" className="px-6 py-2 text-gray-500 font-bold hover:text-slate-800 dark:hover:text-white transition-colors">
-              Guardar Borrador
-            </button>
             <button 
               type="button"
               onClick={() => router.push('/empresas')}

@@ -43,6 +43,40 @@ export interface CompanyDocument {
   [key: string]: string
 }
 
+export type CompanyDocumentType =
+  | 'operations_spec'
+  | 'aoc_cert'
+  | 'ops_manual'
+  | 'sms'
+  | 'insurance'
+  | 'jac_resolution'
+  | 'equipment_records'
+  | 'flight_auth'
+  | 'kmz'
+  | 'mandate_auth'
+  | 'special_auth'
+  | 'aircraft_maint'
+
+export interface CompanyDocumentItem {
+  id: number
+  document_type: CompanyDocumentType
+  document_type_display: string
+  original_filename: string
+  file_url: string
+  file_size: number
+  file_size_display: string
+  mime_type: string
+  expiration_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface UploadCompanyDocumentPayload {
+  document_type: CompanyDocumentType
+  file: File
+  expiration_date?: string
+}
+
 export interface Company {
   id: number
   name: string
@@ -131,5 +165,34 @@ export class CompanyService {
 
   static async deleteCompany(companyId: number | string): Promise<ApiResponse<unknown>> {
     return apiClient.delete<unknown>(`companies/${companyId}/`)
+  }
+
+  static async listCompanyDocuments(companyId: number | string): Promise<ApiResponse<CompanyDocumentItem[]>> {
+    return apiClient.get<CompanyDocumentItem[]>(`companies/${companyId}/documents/`)
+  }
+
+  static async uploadCompanyDocument(
+    companyId: number | string,
+    payload: UploadCompanyDocumentPayload,
+  ): Promise<ApiResponse<CompanyDocumentItem>> {
+    const formData = new FormData()
+    formData.append('document_type', payload.document_type)
+    formData.append('file', payload.file)
+    if (payload.expiration_date) formData.append('expiration_date', payload.expiration_date)
+    return apiClient.post<CompanyDocumentItem>(`companies/${companyId}/documents/`, formData)
+  }
+
+  static async getCompanyDocument(
+    companyId: number | string,
+    documentType: CompanyDocumentType,
+  ): Promise<ApiResponse<CompanyDocumentItem>> {
+    return apiClient.get<CompanyDocumentItem>(`companies/${companyId}/documents/${documentType}/`)
+  }
+
+  static async deleteCompanyDocument(
+    companyId: number | string,
+    documentType: CompanyDocumentType,
+  ): Promise<ApiResponse<unknown>> {
+    return apiClient.delete<unknown>(`companies/${companyId}/documents/${documentType}/`)
   }
 }
