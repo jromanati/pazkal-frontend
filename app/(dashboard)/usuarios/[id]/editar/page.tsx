@@ -486,7 +486,7 @@ export default function EditarUsuarioPage() {
                     onChange={handleChange}
                     placeholder="Ej: Juan Pérez"
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
                 <div>
@@ -501,7 +501,7 @@ export default function EditarUsuarioPage() {
                     onChange={handleChange}
                     placeholder="Ej: Pérez"
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
               </div>
@@ -518,7 +518,7 @@ export default function EditarUsuarioPage() {
                     onChange={handleChange}
                     placeholder="user@example.com"
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
                 <div>
@@ -532,7 +532,7 @@ export default function EditarUsuarioPage() {
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={handleChange}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 pr-10"
+                      className="w-full pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                     />
                     <button
                       type="button"
@@ -559,7 +559,7 @@ export default function EditarUsuarioPage() {
                       type={showPasswordConfirm ? 'text' : 'password'}
                       value={passwordConfirm}
                       onChange={(e) => setPasswordConfirm(e.target.value)}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 pr-10"
+                      className="w-full pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                     />
                     <button
                       type="button"
@@ -586,7 +586,7 @@ export default function EditarUsuarioPage() {
                     value={formData.phone}
                     onChange={handleChange}
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
                 <div>
@@ -599,7 +599,7 @@ export default function EditarUsuarioPage() {
                     value={formData.group_name}
                     onChange={handleChange}
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   >
                     <option value="">Seleccione grupo</option>
                     {validGroups.map((group) => (
@@ -644,7 +644,7 @@ export default function EditarUsuarioPage() {
                     onChange={handleChange}
                     placeholder="12.345.678-9"
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
                 <div>
@@ -658,7 +658,7 @@ export default function EditarUsuarioPage() {
                     value={formData.profile.fecha_nacimiento}
                     onChange={handleChange}
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
               </div>
@@ -674,7 +674,7 @@ export default function EditarUsuarioPage() {
                     value={formData.profile.telefono}
                     onChange={handleChange}
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
                 <div>
@@ -688,7 +688,7 @@ export default function EditarUsuarioPage() {
                     value={String(formData.profile.numero_credencial)}
                     onChange={handleChange}
                     required
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
               </div>

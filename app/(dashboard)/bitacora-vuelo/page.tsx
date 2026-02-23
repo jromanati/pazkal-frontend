@@ -10,6 +10,7 @@ import { FlightLogsService, type FlightLog } from '@/services/flights-logs.servi
 import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
 import { UsersService, type User } from '@/services/users.service'
 import { canAction, canView } from '@/lib/permissions'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 export default function BitacoraVueloPage() {
   const { toggle } = useSidebar()
@@ -190,7 +191,7 @@ export default function BitacoraVueloPage() {
                 type="date"
                 value={filters.date_from}
                 onChange={(e) => setFilters((p) => ({ ...p, date_from: e.target.value }))}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
             <div>
@@ -200,38 +201,41 @@ export default function BitacoraVueloPage() {
                 type="date"
                 value={filters.date_to}
                 onChange={(e) => setFilters((p) => ({ ...p, date_to: e.target.value }))}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_order">Orden</label>
-              <select
-                id="f_order"
+              <SearchableSelect<string>
                 value={filters.flight_order_id}
-                onChange={(e) => setFilters((p) => ({ ...p, flight_order_id: e.target.value }))}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
-              >
-                <option value="">Todas</option>
-                {flightOrders.map((o) => (
-                  <option key={o.id} value={o.id}>{o.order_number}</option>
-                ))}
-              </select>
+                onChange={(v) => setFilters((p) => ({ ...p, flight_order_id: v }))}
+                options={[
+                  { value: '', label: 'Todas' },
+                  ...flightOrders.map((o) => ({ value: String(o.id), label: o.order_number })),
+                ]}
+                placeholder="Todas"
+                searchPlaceholder="Buscar orden..."
+                triggerClassName="text-xs"
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_op">Operador</label>
-              <select
-                id="f_op"
+              <SearchableSelect<string>
                 value={filters.operator_id}
-                onChange={(e) => setFilters((p) => ({ ...p, operator_id: e.target.value }))}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
-              >
-                <option value="">Todos</option>
-                {operators
-                  .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
-                  ))}
-              </select>
+                onChange={(v) => setFilters((p) => ({ ...p, operator_id: v }))}
+                options={[
+                  { value: '', label: 'Todos' },
+                  ...operators
+                    .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+                    .map((u) => ({
+                      value: String(u.id),
+                      label: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.email,
+                    })),
+                ]}
+                placeholder="Todos"
+                searchPlaceholder="Buscar operador..."
+                triggerClassName="text-xs"
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider" htmlFor="f_ordering">Ordenar</label>
@@ -239,7 +243,7 @@ export default function BitacoraVueloPage() {
                 id="f_ordering"
                 value={filters.ordering}
                 onChange={(e) => setFilters((p) => ({ ...p, ordering: e.target.value }))}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               >
                 <option value="-flight_date">Fecha (desc)</option>
                 <option value="flight_date">Fecha (asc)</option>
@@ -253,7 +257,7 @@ export default function BitacoraVueloPage() {
                 value={filters.search}
                 onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
                 placeholder="Número de folio"
-                className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
           </div>

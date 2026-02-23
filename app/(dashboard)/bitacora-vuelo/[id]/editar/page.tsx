@@ -13,6 +13,7 @@ import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.
 import { UsersService } from '@/services/users.service'
 import { FlightLogsService, type FlightLog } from '@/services/flights-logs.service'
 import { canAction, canView } from '@/lib/permissions'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 export default function EditarBitacoraPage() {
   const router = useRouter()
@@ -310,69 +311,69 @@ export default function EditarBitacoraPage() {
             </div>
             <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Folio</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Folio</label>
                 <input
                   type="text"
                   name="folio"
                   value={formData.folio}
                   onChange={handleInputChange}
                   placeholder="Folio de bitácora"
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Orden N°</label>
-                <select 
-                  name="ordenN"
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Orden N°</label>
+                <SearchableSelect<string>
                   value={formData.ordenN}
-                  onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Seleccionar Orden</option>
-                  {flightOrders.map((orden) => (
-                    <option key={orden.id} value={orden.id}>{orden.order_number}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setFormData((prev) => ({ ...prev, ordenN: v }))}
+                  options={[
+                    { value: '', label: 'Seleccionar Orden' },
+                    ...flightOrders.map((orden) => ({ value: String(orden.id), label: orden.order_number })),
+                  ]}
+                  placeholder="Seleccionar Orden"
+                  searchPlaceholder="Buscar orden..."
+                  triggerClassName="text-xs"
+                />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Fecha</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Fecha</label>
                 <input 
                   type="date"
                   name="fecha"
                   value={formData.fecha}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Lugar</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Lugar</label>
                 <input 
                   type="text"
                   name="lugar"
                   value={formData.lugar}
                   onChange={handleInputChange}
                   placeholder="Ciudad / Aeródromo"
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Operador (Piloto)</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Operador (Piloto)</label>
                 <input
                   type="text"
                   value={selectedOrder?.operator?.full_name ?? ''}
                   readOnly
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm text-sm dark:bg-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/60"
+                  className="w-full bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Copiloto / Obs.</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Copiloto / Obs.</label>
                 <input 
                   type="text"
                   name="copiloto"
                   value={formData.copiloto}
                   onChange={handleInputChange}
                   placeholder="Nombre completo"
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
             </div>
@@ -389,12 +390,12 @@ export default function EditarBitacoraPage() {
               <div className="p-4 sm:p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">RPA 1 (Modelo)</label>
+                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">RPA 1 (Modelo)</label>
                     <select 
                       name="rpa1Modelo"
                       value={formData.rpa1Modelo}
                       onChange={handleInputChange}
-                      className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                     >
                       <option value="">Seleccionar</option>
                       {rpasDisponiblesMock.map(rpa => (
@@ -403,25 +404,25 @@ export default function EditarBitacoraPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Registro RPA 1</label>
+                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Registro RPA 1</label>
                     <input 
                       type="text"
                       name="rpa1Registro"
                       value={formData.rpa1Registro}
                       onChange={handleInputChange}
                       placeholder="DGAC-XXXX"
-                      className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">RPA 2 (Modelo)</label>
+                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">RPA 2 (Modelo)</label>
                     <select 
                       name="rpa2Modelo"
                       value={formData.rpa2Modelo}
                       onChange={handleInputChange}
-                      className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                     >
                       <option value="">Seleccionar</option>
                       {rpasDisponiblesMock.map(rpa => (
@@ -430,14 +431,14 @@ export default function EditarBitacoraPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Registro RPA 2</label>
+                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Registro RPA 2</label>
                     <input 
                       type="text"
                       name="rpa2Registro"
                       value={formData.rpa2Registro}
                       onChange={handleInputChange}
                       placeholder="DGAC-YYYY"
-                      className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                     />
                   </div>
                 </div>
@@ -470,7 +471,7 @@ export default function EditarBitacoraPage() {
                               value={bat.inicio}
                               onChange={(e) => handleBateriaChange(index, 'inicio', e.target.value)}
                               placeholder="0"
-                              className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs dark:bg-gray-800 dark:text-gray-200"
+                              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -479,7 +480,7 @@ export default function EditarBitacoraPage() {
                               value={bat.termino}
                               onChange={(e) => handleBateriaChange(index, 'termino', e.target.value)}
                               placeholder="0"
-                              className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs dark:bg-gray-800 dark:text-gray-200"
+                              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                             />
                           </td>
                         </tr>
@@ -499,43 +500,43 @@ export default function EditarBitacoraPage() {
             </div>
             <div className="p-4 sm:p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Hora Salida (UTC)</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Hora Salida (UTC)</label>
                 <input 
                   type="time"
                   name="utcSalida"
                   value={formData.utcSalida}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Hora Llegada (UTC)</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Hora Llegada (UTC)</label>
                 <input 
                   type="time"
                   name="utcLlegada"
                   value={formData.utcLlegada}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Hora Salida (GTM)</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Hora Salida (GTM)</label>
                 <input 
                   type="time"
                   name="gtmSalida"
                   value={formData.gtmSalida}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Hora Llegada (GTM)</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Hora Llegada (GTM)</label>
                 <input 
                   type="time"
                   name="gtmLlegada"
                   value={formData.gtmLlegada}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div className="col-span-2 sm:col-span-1 bg-[#2c528c]/5 dark:bg-[#2c528c]/10 p-3 rounded-lg border border-[#2c528c]/20">
@@ -546,7 +547,7 @@ export default function EditarBitacoraPage() {
                   value={formData.tiempoVuelo}
                   onChange={handleInputChange}
                   placeholder="00"
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm font-bold text-[#2c528c] dark:bg-gray-800 dark:text-blue-400"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs font-bold text-[#2c528c] focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
             </div>
@@ -560,36 +561,36 @@ export default function EditarBitacoraPage() {
             </div>
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Trabajo Aéreo</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Trabajo Aéreo</label>
                 <input 
                   type="text"
                   name="trabajoAereo"
                   value={formData.trabajoAereo}
                   onChange={handleInputChange}
                   placeholder="Tipo de misión realizada"
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Actividad Realizada y Condiciones Operacionales</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Actividad Realizada y Condiciones Operacionales</label>
                 <textarea 
                   name="actividadRealizada"
                   value={formData.actividadRealizada}
                   onChange={handleInputChange}
                   rows={3}
                   placeholder="Detalle la actividad y el clima/entorno..."
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Comentarios y Endosos</label>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Comentarios y Endosos</label>
                 <textarea 
                   name="comentarios"
                   value={formData.comentarios}
                   onChange={handleInputChange}
                   rows={3}
                   placeholder="Notas adicionales o novedades técnicas..."
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
             </div>

@@ -165,7 +165,7 @@ export default function EmpresasPage() {
               <input
                 value={filters.nombre}
                 onChange={(e) => setFilters((p) => ({ ...p, nombre: e.target.value }))}
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
             <div>
@@ -173,7 +173,7 @@ export default function EmpresasPage() {
               <input
                 value={filters.rut}
                 onChange={(e) => setFilters((p) => ({ ...p, rut: e.target.value }))}
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
             <div>
@@ -181,7 +181,7 @@ export default function EmpresasPage() {
               <input
                 value={filters.razonSocial}
                 onChange={(e) => setFilters((p) => ({ ...p, razonSocial: e.target.value }))}
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
             <div>
@@ -189,7 +189,7 @@ export default function EmpresasPage() {
               <input
                 value={filters.aoc}
                 onChange={(e) => setFilters((p) => ({ ...p, aoc: e.target.value }))}
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
           </div>

@@ -214,7 +214,7 @@ export default function UsuariosPage() {
                         <input
                             value={filters.nombre}
                             onChange={(e) => setFilters((p) => ({ ...p, nombre: e.target.value }))}
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                         />
                     </div>
                     <div>
@@ -222,7 +222,7 @@ export default function UsuariosPage() {
                         <input
                             value={filters.rut}
                             onChange={(e) => setFilters((p) => ({ ...p, rut: e.target.value }))}
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                         />
                     </div>
                     <div>
@@ -230,7 +230,7 @@ export default function UsuariosPage() {
                         <input
                             value={filters.email}
                             onChange={(e) => setFilters((p) => ({ ...p, email: e.target.value }))}
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                         />
                     </div>
                     <div>
@@ -238,7 +238,7 @@ export default function UsuariosPage() {
                         <select
                             value={filters.tipoUsuario}
                             onChange={(e) => setFilters((p) => ({ ...p, tipoUsuario: e.target.value as any }))}
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                         >
                             <option value="">Todos</option>
                             <option value="administrador">Administrador</option>
@@ -252,7 +252,7 @@ export default function UsuariosPage() {
                         <input
                             value={filters.empresa}
                             onChange={(e) => setFilters((p) => ({ ...p, empresa: e.target.value }))}
-                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                         />
                     </div>
                 </div>

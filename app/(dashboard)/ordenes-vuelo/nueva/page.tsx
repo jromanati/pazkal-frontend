@@ -9,6 +9,7 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { tiposTrabajoAereoMock } from '@/lib/mock-data'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { UsersService, type User } from '@/services/users.service'
 import { FlightOrdersService, type FlightOrderStatus } from '@/services/flight-orders.service'
@@ -195,27 +196,21 @@ export default function NuevaOrdenVueloPage() {
             </div>
             <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div>
-                <label htmlFor="empresa" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="empresa" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Empresa
                 </label>
-                <select
-                  id="empresa"
-                  name="empresa"
-                  value={formData.empresa}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setFormData((prev) => ({ ...prev, empresa: value, piloto: '' }))
+                <SearchableSelect
+                  value={formData.empresa || null}
+                  onChange={(v) => {
+                    setFormData((prev) => ({ ...prev, empresa: String(v), piloto: '' }))
                   }}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Seleccione una empresa</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
+                  placeholder="Seleccione una empresa"
+                  searchPlaceholder="Buscar empresa..."
+                />
               </div>
               <div>
-                <label htmlFor="numeroOrden" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="numeroOrden" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Número de orden
                 </label>
                 <input
@@ -225,28 +220,27 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.numeroOrden}
                   onChange={handleChange}
                   placeholder="Ej: OV-0001"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="piloto" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="piloto" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Piloto
                 </label>
-                <select
-                  id="piloto"
-                  name="piloto"
-                  value={formData.piloto}
-                  onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Seleccione un operador</option>
-                  {operadoresFiltrados.map((op) => (
-                    <option key={op.id} value={op.id}>{op.first_name} {op.last_name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  value={formData.piloto || null}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, piloto: String(v) }))}
+                  options={operadoresFiltrados.map((op) => ({
+                    value: String(op.id),
+                    label: `${op.first_name ?? ''} ${op.last_name ?? ''}`.trim() || op.email,
+                  }))}
+                  placeholder="Seleccione un piloto"
+                  searchPlaceholder="Buscar piloto..."
+                  disabled={!formData.empresa}
+                />
               </div>
               <div>
-                <label htmlFor="estado" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="estado" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Estado
                 </label>
                 <select
@@ -254,7 +248,7 @@ export default function NuevaOrdenVueloPage() {
                   name="estado"
                   value={formData.estado}
                   onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 >
                   <option value="PENDING">Pendiente</option>
                   <option value="IN_FLIGHT">En vuelo</option>
@@ -262,7 +256,7 @@ export default function NuevaOrdenVueloPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="observador" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="observador" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Observador
                 </label>
                 <input
@@ -272,11 +266,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.observador}
                   onChange={handleChange}
                   placeholder="Nombre del observador"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="rpa" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="rpa" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   RPA
                 </label>
                 <input
@@ -286,11 +280,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.rpa}
                   onChange={handleChange}
                   placeholder="Identificación del RPA"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="tipoVuelo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="tipoVuelo" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Tipo de vuelo
                 </label>
                 <input
@@ -300,11 +294,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.tipoVuelo}
                   onChange={handleChange}
                   placeholder="Ej: Fotogrametría"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="fecha" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="fecha" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Fecha
                 </label>
                 <input
@@ -313,11 +307,11 @@ export default function NuevaOrdenVueloPage() {
                   name="fecha"
                   value={formData.fecha}
                   onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="trabajoAereo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="trabajoAereo" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Trabajo aéreo
                 </label>
                 <select
@@ -325,7 +319,7 @@ export default function NuevaOrdenVueloPage() {
                   name="trabajoAereo"
                   value={formData.trabajoAereo}
                   onChange={handleChange}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 >
                   <option value="">Seleccione tipo de trabajo</option>
                   {tiposTrabajoAereoMock.map((tipo) => (
@@ -344,7 +338,7 @@ export default function NuevaOrdenVueloPage() {
             </div>
             <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label htmlFor="lugar" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="lugar" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Lugar
                 </label>
                 <input
@@ -354,11 +348,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.lugar}
                   onChange={handleChange}
                   placeholder="Ubicación de despegue/operación"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="trabajo" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="trabajo" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Trabajo
                 </label>
                 <input
@@ -368,11 +362,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.trabajo}
                   onChange={handleChange}
                   placeholder="Especificación técnica"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="utcActividad" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="utcActividad" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   UTC actividad
                 </label>
                 <input
@@ -382,11 +376,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.utcActividad}
                   onChange={handleChange}
                   placeholder="Ej: 14:00 - 18:00 UTC"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="notam" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="notam" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Notam
                 </label>
                 <input
@@ -396,11 +390,11 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.notam}
                   onChange={handleChange}
                   placeholder="Referencia NOTAM si aplica"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label htmlFor="areaGeografica" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="areaGeografica" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Área geográfica
                 </label>
                 <textarea
@@ -410,11 +404,11 @@ export default function NuevaOrdenVueloPage() {
                   onChange={handleChange}
                   placeholder="Coordenadas o límites del polígono"
                   rows={2}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label htmlFor="areasPeligrosas" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="areasPeligrosas" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Áreas prohibidas o peligrosas
                 </label>
                 <textarea
@@ -424,11 +418,11 @@ export default function NuevaOrdenVueloPage() {
                   onChange={handleChange}
                   placeholder="Identificación de restricciones en la zona"
                   rows={2}
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
-                <label htmlFor="gerenteResponsable" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-gray-300 mb-1.5">
+                <label htmlFor="gerenteResponsable" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Gerente responsable
                 </label>
                 <input
@@ -438,7 +432,7 @@ export default function NuevaOrdenVueloPage() {
                   value={formData.gerenteResponsable}
                   onChange={handleChange}
                   placeholder="Nombre de autoridad a cargo"
-                  className="block w-full rounded-lg border-gray-300 dark:border-gray-700 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
             </div>

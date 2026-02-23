@@ -532,7 +532,7 @@ function DatosPersonales({
                 Nombre completo
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="nombre"
                 name="first_name"
                 value={formData.first_name}
@@ -546,7 +546,7 @@ function DatosPersonales({
                 Apellido
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="apellido"
                 name="last_name"
                 value={formData.last_name}
@@ -560,7 +560,7 @@ function DatosPersonales({
                 Fecha nacimiento
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="nacimiento"
                 name="profile.fecha_nacimiento"
                 value={formData.profile.fecha_nacimiento}
@@ -573,7 +573,7 @@ function DatosPersonales({
                 Rut
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="rut"
                 placeholder="12.345.678-9"
                 name="profile.rut"
@@ -587,7 +587,7 @@ function DatosPersonales({
                 Número de credencial
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="credencial"
                 placeholder="Ej. 12345"
                 name="profile.numero_credencial"
@@ -603,7 +603,7 @@ function DatosPersonales({
                 Teléfono
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="telefono"
                 placeholder="+56 9 1234 5678"
                 name="phone"
@@ -617,7 +617,7 @@ function DatosPersonales({
                 Correo electrónico
               </label>
               <input
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 id="email"
                 placeholder="juan.perez@ejemplo.cl"
                 name="email"
@@ -632,7 +632,7 @@ function DatosPersonales({
               </label>
               <div className="relative">
                 <input
-                  className="block w-full pr-10 rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                  className="w-full pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   id="password"
                   name="password"
                   value={formData.password}
@@ -655,7 +655,7 @@ function DatosPersonales({
               </label>
               <div className="relative">
                 <input
-                  className="block w-full pr-10 rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5 focus:ring-[#2c528c] focus:border-[#2c528c] transition-colors"
+                  className="w-full pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   id="confirmPassword"
                   name="confirmPassword"
                   value={formData.confirmPassword}
@@ -763,7 +763,7 @@ function DatosProfesionales({
               Fecha otorgamiento credencial
             </label>
             <input
-              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
               id="fecha_otorgamiento"
               name="profile.fecha_otorgamiento_credencial"
               value={formData.profile.fecha_otorgamiento_credencial}
@@ -776,7 +776,7 @@ function DatosProfesionales({
               Fecha vencimiento credencial
             </label>
             <input
-              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
               id="fecha_vencimiento"
               name="profile.fecha_vencimiento_credencial"
               value={formData.profile.fecha_vencimiento_credencial}
@@ -846,7 +846,7 @@ function DatosProfesionales({
                     return next
                   })
                 }
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
           ))}
@@ -865,7 +865,7 @@ function DatosProfesionales({
               Eficiencia operativa Fecha
             </label>
             <input
-              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
               id="eficiencia_fecha"
               type="date"
               name="profile.eficiencia_operativa"
@@ -878,7 +878,7 @@ function DatosProfesionales({
               Fecha última capacitación (credencial)
             </label>
             <input
-              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
               id="ultima_cap_fecha"
               type="date"
               name="profile.fecha_ultima_capacitacion"
@@ -891,7 +891,7 @@ function DatosProfesionales({
               Empresa capacitadora
             </label>
             <input
-              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#2c528c] focus:ring-[#2c528c] text-xs sm:text-sm bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
               id="empresa_capacitadora"
               type="text"
               name="profile.empresa_capacitadora"
@@ -945,7 +945,7 @@ function Calificaciones() {
                       Tipo de calificación
                     </label>
                     <select
-                      className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                       value={cal.tipo}
                       onChange={(e) => {
                         const updated = [...calificaciones]
@@ -965,7 +965,7 @@ function Calificaciones() {
                     </label>
                     <input
                       type="text"
-                      className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                       value={cal.aeronave}
                       onChange={(e) => {
                         const updated = [...calificaciones]
@@ -980,7 +980,7 @@ function Calificaciones() {
                     </label>
                     <input
                       type="date"
-                      className="block w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm p-2 sm:p-2.5"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
                       value={cal.fechaVigencia}
                       onChange={(e) => {
                         const updated = [...calificaciones]

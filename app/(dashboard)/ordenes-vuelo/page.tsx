@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@/services/flight-orders.service'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { UsersService, type User } from '@/services/users.service'
@@ -193,34 +194,37 @@ export default function OrdenesVueloPage() {
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_company">
                 Empresa
               </label>
-              <select
-                id="f_company"
+              <SearchableSelect<string>
                 value={filters.company_id}
-                onChange={(e) => setFilters((p) => ({ ...p, company_id: e.target.value }))}
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
-              >
-                <option value="">Todas</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                onChange={(v) => setFilters((p) => ({ ...p, company_id: v }))}
+                options={[
+                  { value: '', label: 'Todas' },
+                  ...companies.map((c) => ({ value: String(c.id), label: c.name })),
+                ]}
+                placeholder="Todas"
+                searchPlaceholder="Buscar empresa..."
+                triggerClassName="text-xs"
+              />
             </div>
 
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_operator">
                 Operador
               </label>
-              <select
-                id="f_operator"
+              <SearchableSelect<string>
                 value={filters.operator_id}
-                onChange={(e) => setFilters((p) => ({ ...p, operator_id: e.target.value }))}
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
-              >
-                <option value="">Todos</option>
-                {operators.map((u) => (
-                  <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
-                ))}
-              </select>
+                onChange={(v) => setFilters((p) => ({ ...p, operator_id: v }))}
+                options={[
+                  { value: '', label: 'Todos' },
+                  ...operators.map((u) => ({
+                    value: String(u.id),
+                    label: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.email,
+                  })),
+                ]}
+                placeholder="Todos"
+                searchPlaceholder="Buscar operador..."
+                triggerClassName="text-xs"
+              />
             </div>
 
             <div>
@@ -232,7 +236,7 @@ export default function OrdenesVueloPage() {
                 type="date"
                 value={filters.date_from}
                 onChange={(e) => setFilters((p) => ({ ...p, date_from: e.target.value }))}
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
 
@@ -245,7 +249,7 @@ export default function OrdenesVueloPage() {
                 type="date"
                 value={filters.date_to}
                 onChange={(e) => setFilters((p) => ({ ...p, date_to: e.target.value }))}
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
 
@@ -257,7 +261,7 @@ export default function OrdenesVueloPage() {
                 id="f_status"
                 value={filters.status}
                 onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value as any }))}
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               >
                 <option value="">Todos</option>
                 <option value="PENDING">Pendiente</option>
@@ -276,7 +280,7 @@ export default function OrdenesVueloPage() {
                 value={filters.search}
                 onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
                 placeholder="Número de orden"
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               />
             </div>
           </div>
@@ -290,7 +294,7 @@ export default function OrdenesVueloPage() {
                 id="f_ordering"
                 value={filters.ordering}
                 onChange={(e) => setFilters((p) => ({ ...p, ordering: e.target.value }))}
-                className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
               >
                 <option value="-scheduled_date">Fecha (desc)</option>
                 <option value="scheduled_date">Fecha (asc)</option>
