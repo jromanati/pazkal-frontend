@@ -716,7 +716,7 @@ function DatosPersonales({
       </div>
 
       {/* Footer */}
-      <div className="px-4 sm:px-8 py-3 sm:py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-end">
+      <div className="flex flex-col sm:flex-row items-center justify-end gap-3 sm:gap-4 p-4 sm:p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800">
         <button className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-bold px-6 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
           <span className="material-symbols-outlined text-lg">save</span>
           Guardar Operador
@@ -791,7 +791,7 @@ function DatosProfesionales({
             <input
               id="credencial_doc"
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               onChange={(e) => setCredentialImage(e.target.files?.[0] ?? null)}
               className="hidden"
             />
@@ -815,7 +815,7 @@ function DatosProfesionales({
                   <>
                     <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">upload_file</span>
                     <p className="text-sm text-gray-500">Arrastra o haz clic para subir</p>
-                    <p className="text-xs text-gray-400">PNG/JPG</p>
+                    <p className="text-xs text-gray-400">PNG/JPG/PDF</p>
                   </>
                 )}
               </div>

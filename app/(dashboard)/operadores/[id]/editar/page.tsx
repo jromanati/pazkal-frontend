@@ -646,6 +646,7 @@ export default function EditarOperadorPage() {
         <fieldset disabled={!canUpdate} className="contents">
           {activeTab === 'datos-personales' && (
             <DatosPersonales
+              canUpdate={canUpdate}
               formData={formData}
               onChange={handleChange}
               companies={companies}
@@ -655,6 +656,7 @@ export default function EditarOperadorPage() {
           )}
           {activeTab === 'datos-profesionales' && (
             <DatosProfesionales
+              canUpdate={canUpdate}
               formData={formData}
               onChange={handleChange}
               habilitaciones={habilitaciones}
@@ -680,12 +682,14 @@ export default function EditarOperadorPage() {
 }
 
 function DatosPersonales({
+  canUpdate,
   formData,
   onChange,
   companies,
   onOpenEmpresas,
   onRemoveEmpresa,
 }: {
+  canUpdate: boolean
   formData: {
     first_name: string
     last_name: string
@@ -905,16 +909,19 @@ function DatosPersonales({
 
       {/* Footer */}
       <div className="px-8 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-end">
-        <button type="button" className="bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-10 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95">
-          <span className="material-symbols-outlined">save</span>
-          Guardar Cambios
-        </button>
+        {canUpdate && (
+          <button type="button" className="bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-10 py-3 rounded-lg flex items-center gap-2 transition-all shadow-lg active:scale-95">
+            <span className="material-symbols-outlined">save</span>
+            Guardar Cambios
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
 function DatosProfesionales({
+  canUpdate,
   formData,
   onChange,
   habilitaciones,
@@ -923,6 +930,7 @@ function DatosProfesionales({
   setCredentialImage,
   credentialImageInfo,
 }: {
+  canUpdate: boolean
   formData: {
     profile: {
       fecha_otorgamiento_credencial: string
@@ -939,6 +947,8 @@ function DatosProfesionales({
   setCredentialImage: (f: File | null) => void
   credentialImageInfo: CredentialImageResponse | null
 }) {
+  const isPdfUrl = (url: string) => /\.pdf(\?|#|$)/i.test(url)
+
   const handleDownloadCredential = async () => {
     const url = credentialImageInfo?.image_url
     if (!url) return
@@ -960,6 +970,7 @@ function DatosProfesionales({
       const objectUrl = URL.createObjectURL(blob)
       const extension = (() => {
         const contentType = response.headers.get('content-type') || ''
+        if (contentType.includes('pdf')) return 'pdf'
         if (contentType.includes('png')) return 'png'
         if (contentType.includes('jpeg') || contentType.includes('jpg')) return 'jpg'
         if (contentType.includes('webp')) return 'webp'
@@ -1018,18 +1029,35 @@ function DatosProfesionales({
             <input
               id="credencial_doc"
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               onChange={(e) => setCredentialImage(e.target.files?.[0] ?? null)}
               className="hidden"
             />
 
-            {credentialImageInfo?.has_image && credentialImageInfo.image_url ? (
+            {credentialImageInfo?.has_image && credentialImageInfo.image_url && !isPdfUrl(credentialImageInfo.image_url) ? (
               <div className="mb-3 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
                 <img
                   src={credentialImageInfo.image_url}
                   alt="Imagen credencial operador"
                   className="w-full max-h-72 object-contain bg-gray-50 dark:bg-gray-800"
                 />
+              </div>
+            ) : null}
+
+            {credentialImageInfo?.has_image && credentialImageInfo.image_url && isPdfUrl(credentialImageInfo.image_url) ? (
+              <div className="mb-3 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="material-symbols-outlined text-red-500">picture_as_pdf</span>
+                  <p className="text-sm text-slate-700 dark:text-gray-200 truncate">PDF cargado</p>
+                </div>
+                <a
+                  href={credentialImageInfo.image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Ver
+                </a>
               </div>
             ) : null}
 
@@ -1066,7 +1094,7 @@ function DatosProfesionales({
                   <>
                     <span className="material-symbols-outlined text-gray-400 text-4xl mb-2">upload_file</span>
                     <p className="text-sm text-gray-500">Arrastra o haz clic para subir</p>
-                    <p className="text-xs text-gray-400">PNG/JPG</p>
+                    <p className="text-xs text-gray-400">PNG/JPG/PDF</p>
                   </>
                 )}
               </div>
@@ -1162,13 +1190,15 @@ function DatosProfesionales({
         >
           Cancelar
         </Link>
-        <button
-          type="button"
-          className="px-8 py-2.5 rounded-lg bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold shadow-lg transition-colors flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-lg">save</span>
-          Guardar Cambios
-        </button>
+        {canUpdate && (
+          <button
+            type="button"
+            className="px-8 py-2.5 rounded-lg bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold shadow-lg transition-colors flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-lg">save</span>
+            Guardar Cambios
+          </button>
+        )}
       </div>
     </form>
   )

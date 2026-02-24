@@ -5,6 +5,7 @@ export interface Empresa {
   nombre: string;
   rut: string;
   razonSocial: string;
+  address: string;
   aocCeo: string;
   numeroAoc?: string;
   especificacion?: string;

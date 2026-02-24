@@ -63,7 +63,7 @@ export default function InicioPage() {
     <>
       <Header icon="home" title="Inicio" onMenuClick={toggle} />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)]">
+      <div className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8 relative py-8 sm:py-10">
         <div className="flex flex-col items-center">
           <div className="mb-6 sm:mb-8 flex flex-col items-center">
             <div className="size-20 sm:size-24 lg:size-32 rounded-2xl bg-[#2c528c] flex items-center justify-center shadow-2xl mb-4 sm:mb-6 ring-4 sm:ring-6 lg:ring-8 ring-white dark:ring-gray-800">

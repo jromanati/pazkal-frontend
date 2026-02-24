@@ -29,6 +29,7 @@ export default function NuevaEmpresaPage() {
     rut_empresa: '',
     nombre: '',
     razon_social: '',
+    sucursal: '',
     numero_aoc: '',
     especificacion: '',
     nombre_gerente: '',
@@ -57,7 +58,7 @@ export default function NuevaEmpresaPage() {
       code: codeCandidate,
       legal_name: formData.razon_social,
       tax_id: formData.rut_empresa,
-      address: '',
+      address: formData.sucursal || '',
       phone: '',
       email: formData.correo_gerente || 'user@example.com',
       website: '',
@@ -156,6 +157,19 @@ export default function NuevaEmpresaPage() {
                         value={formData.razon_social}
                         onChange={handleChange}
                         placeholder="Razón social completa" 
+                        type="text"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2" htmlFor="sucursal">
+                        Sucursal
+                      </label>
+                      <input 
+                        className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                        id="sucursal" 
+                        value={formData.sucursal}
+                        onChange={handleChange}
+                        placeholder="Sucursal" 
                         type="text"
                       />
                     </div>

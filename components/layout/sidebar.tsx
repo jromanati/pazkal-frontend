@@ -20,7 +20,7 @@ const navItems: NavItem[] = [
   { href: '/operadores', icon: 'engineering', label: 'Operadores' },
   { href: '/ordenes-vuelo', icon: 'assignment', label: 'Órdenes de vuelo' },
   { href: '/bitacora-vuelo', icon: 'menu_book', label: 'Bitácora de vuelo' },
-  { href: '/reportes', icon: 'analytics', label: 'Reportes', disabled: true },
+  // { href: '/reportes', icon: 'analytics', label: 'Reportes', disabled: true },
   { href: '/usuarios', icon: 'manage_accounts', label: 'Usuarios' },
   { href: '/perfil', icon: 'account_circle', label: 'Mi perfil' },
 ]

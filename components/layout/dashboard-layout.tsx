@@ -32,7 +32,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <div className="flex min-h-screen overflow-hidden">
+      <div className="flex min-h-screen overflow-x-hidden">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex-1 flex flex-col h-screen overflow-y-auto bg-[#f6f7f8] dark:bg-[#14181e] w-full">
           {children}

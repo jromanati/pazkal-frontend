@@ -115,7 +115,9 @@ export default function OperadoresPage() {
 
   return (
     <>
-      <Header onMenuClick={toggle} />
+      <Header icon="engineering" onMenuClick={toggle}>
+        <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-500 hidden sm:block">Módulo de Operadores</span>
+      </Header>
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Header */}
@@ -151,7 +153,7 @@ export default function OperadoresPage() {
                     <p className="text-xs text-gray-500 truncate">{operador.correo}</p>
                   </div>
                 </div>
-                {(canUpdate || canDelete) && (
+                {canRead && (
                   <div className="flex gap-1 flex-shrink-0">
                     <Link
                       href={`/operadores/${operador.id}/editar`}
@@ -219,7 +221,7 @@ export default function OperadoresPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {(canUpdate || canDelete) && (
+                      {canRead && (
                         <div className="flex justify-end gap-2">
                           <Link
                             href={`/operadores/${operador.id}/editar`}

@@ -27,6 +27,7 @@ export default function EditarEmpresaPage() {
     rut: '',
     nombre: '',
     razonSocial: '',
+    sucursal: '',
     numeroAoc: '',
     especificacion: '',
     nombreGerente: '',
@@ -59,6 +60,7 @@ export default function EditarEmpresaPage() {
         nombre: c.name ?? '',
         rut: c.tax_id ?? '',
         razonSocial: c.legal_name ?? '',
+        address: c.address ?? '',
         aocCeo: c.aoc_ceo_number ?? '',
         numeroAoc: c.aoc_ceo_number ?? '',
         especificacion: c.operations_specification ?? '',
@@ -74,6 +76,7 @@ export default function EditarEmpresaPage() {
         rut: mapped.rut || '',
         nombre: mapped.nombre || '',
         razonSocial: mapped.razonSocial || '',
+        sucursal: mapped.address || '',
         numeroAoc: mapped.numeroAoc || '',
         especificacion: mapped.especificacion || '',
         nombreGerente: mapped.nombreGerente || '',
@@ -119,8 +122,8 @@ export default function EditarEmpresaPage() {
     const response = await CompanyService.updateCompany(companyId, {
       name: formData.nombre,
       legal_name: formData.razonSocial,
+      address: formData.sucursal,
       tax_id: formData.rut,
-      address: '',
       phone: '',
       email: formData.correoGerente || 'user@example.com',
       website: '',
@@ -244,6 +247,19 @@ export default function EditarEmpresaPage() {
                       value={formData.razonSocial}
                       onChange={handleChange}
                       placeholder="Razón social completa" 
+                      type="text"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="sucursal">
+                      Sucursal
+                    </label>
+                    <input 
+                      className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                      id="sucursal" 
+                      value={formData.sucursal}
+                      onChange={handleChange}
+                      placeholder="Dirección de la sucursal" 
                       type="text"
                     />
                   </div>
@@ -681,7 +697,7 @@ function DocumentosEmpresa({
           >
             Anterior
           </button>
-          <div className="flex gap-4">
+          {/* <div className="flex gap-4">
             <button 
               type="button"
               onClick={() => router.push('/empresas')}
@@ -689,7 +705,7 @@ function DocumentosEmpresa({
             >
               Guardar Cambios
             </button>
-          </div>
+          </div> */}
         </div>
       </form>
     </>
