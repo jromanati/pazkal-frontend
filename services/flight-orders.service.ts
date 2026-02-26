@@ -16,11 +16,22 @@ export interface FlightOrderOperator {
   full_name: string
 }
 
+export interface FlightOrderBranch {
+  id: number
+  name: string
+  location?: string
+}
+
 export interface FlightOrder {
   id: number
   order_number: string
-  company: FlightOrderCompany
+  company?: FlightOrderCompany
   operator: FlightOrderOperator
+  branch?: FlightOrderBranch
+  branch_id?: number
+  branch_name?: string
+  company_id?: number
+  company_name?: string
   observer_name?: string
   rpa_identifier?: string
   flight_type?: string
@@ -51,7 +62,7 @@ export interface ListFlightOrdersParams {
 }
 
 export interface CreateFlightOrderPayload {
-  company_id: number
+  branch_id: number
   order_number: string
   operator_id: number
   observer_name?: string

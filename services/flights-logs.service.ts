@@ -68,6 +68,7 @@ export interface CreateFlightLogPayload {
   log_number: string
   operator_id: number
   flight_date: string
+  drone_ids?: number[]
   copilot_name?: string
   location: string
   rpa1_model?: string

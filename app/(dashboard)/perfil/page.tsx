@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
-import { getCurrentUserFromStorage } from '@/lib/permissions'
-import { UsersService } from '@/services/users.service'
+import { AuthService } from '@/services/auth.service'
 
 export default function PerfilPage() {
   const { toggle } = useSidebar()
@@ -16,15 +15,14 @@ export default function PerfilPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
-
-  const localUser = useMemo(() => (mounted ? getCurrentUserFromStorage() : null), [mounted])
-  const userId = (localUser as any)?.id
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
 
   const [formData, setFormData] = useState({
     email: '',
     first_name: '',
     last_name: '',
     phone: '',
+    current_password: '',
     password: '',
     password_confirm: '',
   })
@@ -36,11 +34,10 @@ export default function PerfilPage() {
   useEffect(() => {
     const run = async () => {
       if (!mounted) return
-      if (!userId) return
 
       setLoading(true)
       try {
-        const response = await UsersService.getUser(userId)
+        const response = await AuthService.getMe<any>()
         if (!response.success || !response.data) {
           toast({
             title: 'No se pudo cargar tu perfil',
@@ -57,6 +54,7 @@ export default function PerfilPage() {
           first_name: u.first_name ?? '',
           last_name: u.last_name ?? '',
           phone: u.phone ?? '',
+          current_password: '',
           password: '',
           password_confirm: '',
         }))
@@ -66,7 +64,7 @@ export default function PerfilPage() {
     }
 
     run()
-  }, [mounted, userId, toast])
+  }, [mounted, toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -75,9 +73,19 @@ export default function PerfilPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!userId) return
 
-    if (formData.password || formData.password_confirm) {
+    const wantsPasswordChange = Boolean(formData.password || formData.password_confirm)
+
+    if (wantsPasswordChange) {
+      if (!formData.current_password) {
+        toast({
+          title: 'Falta contraseña actual',
+          description: 'Debes ingresar tu contraseña actual para cambiarla.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       if (formData.password !== formData.password_confirm) {
         toast({
           title: 'Contraseñas no coinciden',
@@ -90,15 +98,19 @@ export default function PerfilPage() {
 
     setLoading(true)
     try {
-      const payload = {
-        email: formData.email,
+      const payload: any = {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
-        ...(formData.password ? { password: formData.password } : {}),
+        ...(wantsPasswordChange
+          ? {
+            current_password: formData.current_password,
+            new_password: formData.password,
+          }
+          : {}),
       }
 
-      const response = await UsersService.updateUser(userId, payload)
+      const response = await AuthService.updateMe<any>(payload)
       if (!response.success) {
         toast({
           title: 'Error al guardar',
@@ -109,12 +121,11 @@ export default function PerfilPage() {
       }
 
       const updatedUser = response.data
-      if (updatedUser) {
-        localStorage.setItem('user_data', JSON.stringify(updatedUser))
-      }
+      if (updatedUser) localStorage.setItem('user_data', JSON.stringify(updatedUser))
 
       setFormData((prev) => ({
         ...prev,
+        current_password: '',
         password: '',
         password_confirm: '',
       }))
@@ -200,6 +211,7 @@ export default function PerfilPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    disabled
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
@@ -231,6 +243,32 @@ export default function PerfilPage() {
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
+                  <label htmlFor="current_password" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Contraseña actual
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="current_password"
+                      name="current_password"
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={formData.current_password}
+                      onChange={handleChange}
+                      className="w-full pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showCurrentPassword ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {showCurrentPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label htmlFor="password" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Nueva contraseña
                   </label>
@@ -256,7 +294,7 @@ export default function PerfilPage() {
                   </div>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label htmlFor="password_confirm" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Repetir contraseña
                   </label>

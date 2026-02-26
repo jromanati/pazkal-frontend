@@ -11,28 +11,62 @@ import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { UsersService } from '@/services/users.service'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
+import { BranchService, type Branch } from '@/services/branches.service'
 
-function AsignarEmpresasModal({
+type Sucursal = {
+  id: string
+  nombre: string
+  lugar: string
+}
+
+type AsignacionEmpresa = {
+  empresaId: string
+  empresaNombre: string
+  sucursalIds: string[]
+}
+
+function normalizeBranchesResponse(raw: unknown): Branch[] {
+  if (Array.isArray(raw)) return raw as Branch[]
+  if (raw && typeof raw === 'object' && Array.isArray((raw as any).results)) return (raw as any).results as Branch[]
+  return []
+}
+
+function branchToSucursal(branch: Branch): Sucursal {
+  return {
+    id: String(branch.id),
+    nombre: branch.name,
+    lugar: branch.location,
+  }
+}
+
+function AsignarEmpresasSucursalesModal({
   open,
   onClose,
   companies,
-  selectedIds,
+  branchesByCompany,
+  onEnsureBranches,
+  asignacionesActuales,
   onSave,
 }: {
   open: boolean
   onClose: () => void
   companies: CompanyListItem[]
-  selectedIds: string[]
-  onSave: (ids: string[]) => void
+  branchesByCompany: Record<string, Branch[]>
+  onEnsureBranches: (companyId: string) => Promise<void>
+  asignacionesActuales: AsignacionEmpresa[]
+  onSave: (asignaciones: AsignacionEmpresa[]) => void
 }) {
-  const [seleccionadas, setSeleccionadas] = useState<string[]>(selectedIds)
+  const [asignaciones, setAsignaciones] = useState<AsignacionEmpresa[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const [expandedEmpresas, setExpandedEmpresas] = useState<string[]>([])
 
   useEffect(() => {
-    if (!open) return
-    setSeleccionadas(selectedIds)
-    setBusqueda('')
-  }, [open, selectedIds])
+    if (open) {
+      setAsignaciones(asignacionesActuales.map(a => ({ ...a, sucursalIds: [...a.sucursalIds] })))
+      setBusqueda('')
+      setExpandedEmpresas(asignacionesActuales.map(a => a.empresaId))
+    }
+  }, [open, asignacionesActuales])
 
   useEffect(() => {
     if (!open) return
@@ -50,120 +84,217 @@ function AsignarEmpresasModal({
     return c.name.toLowerCase().includes(q) || c.tax_id.toLowerCase().includes(q)
   })
 
-  const toggleEmpresa = (id: string) => {
-    setSeleccionadas(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  const isEmpresaChecked = (empresaId: string) => asignaciones.some(a => a.empresaId === empresaId)
+
+  const getSucursalesEmpresa = (empresaId: string): Sucursal[] =>
+    (branchesByCompany[empresaId] ?? []).map(branchToSucursal)
+
+  const isSucursalChecked = (empresaId: string, sucursalId: string) => {
+    const asig = asignaciones.find(a => a.empresaId === empresaId)
+    return asig ? asig.sucursalIds.includes(sucursalId) : false
   }
 
-  const toggleAll = () => {
-    if (seleccionadas.length === companies.length) {
-      setSeleccionadas([])
+  const toggleExpand = async (empresaId: string) => {
+    if (!expandedEmpresas.includes(empresaId)) {
+      await onEnsureBranches(empresaId)
+    }
+    setExpandedEmpresas(prev =>
+      prev.includes(empresaId) ? prev.filter(id => id !== empresaId) : [...prev, empresaId],
+    )
+  }
+
+  const toggleEmpresa = async (empresa: { id: string; nombre: string }) => {
+    const exists = asignaciones.find(a => a.empresaId === empresa.id)
+    if (exists) {
+      setAsignaciones(prev => prev.filter(a => a.empresaId !== empresa.id))
+      setExpandedEmpresas(prev => prev.filter(id => id !== empresa.id))
     } else {
-      setSeleccionadas(companies.map(c => String(c.id)))
+      await onEnsureBranches(empresa.id)
+      setAsignaciones(prev => [...prev, { empresaId: empresa.id, empresaNombre: empresa.nombre, sucursalIds: [] }])
+      setExpandedEmpresas(prev => [...prev, empresa.id])
     }
   }
+
+  const toggleSucursal = (empresaId: string, sucursalId: string) => {
+    setAsignaciones(prev => prev.map(a => {
+      if (a.empresaId !== empresaId) return a
+      const hasSuc = a.sucursalIds.includes(sucursalId)
+      return {
+        ...a,
+        sucursalIds: hasSuc
+          ? a.sucursalIds.filter(id => id !== sucursalId)
+          : [...a.sucursalIds, sucursalId],
+      }
+    }))
+  }
+
+  const toggleAllSucursales = (empresaId: string) => {
+    const sucursales = getSucursalesEmpresa(empresaId)
+    setAsignaciones(prev => prev.map(a => {
+      if (a.empresaId !== empresaId) return a
+      const allSelected = sucursales.every(s => a.sucursalIds.includes(s.id))
+      return { ...a, sucursalIds: allSelected ? [] : sucursales.map(s => s.id) }
+    }))
+  }
+
+  const totalSucursalesSeleccionadas = asignaciones.reduce((acc, a) => acc + a.sucursalIds.length, 0)
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-[90%] sm:max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-800/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-[#2c528c]/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[#2c528c]">domain_add</span>
+        <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-[92%] sm:max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+          <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-800/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-lg bg-[#2c528c]/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#2c528c]">domain_add</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 dark:text-gray-100 text-sm sm:text-base">Asignar Empresas y Sucursales</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Seleccione empresas y luego sus sucursales</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-slate-800 dark:text-gray-100 text-sm sm:text-base">Asignar Empresas</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Seleccione las empresas a las que pertenece el usuario</p>
-              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-              <span className="material-symbols-outlined">close</span>
+          </div>
+
+          <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar empresa por nombre o RUT..."
+                className="w-full pl-9 pr-4 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-[#2c528c] focus:ring-1 focus:ring-[#2c528c] transition-colors dark:text-gray-200"
+              />
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-gray-400">
+                {asignaciones.length} empresa(s), {totalSucursalesSeleccionadas} sucursal(es)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
+            {empresasFiltradas.length === 0 ? (
+              <div className="text-center py-8">
+                <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600">search_off</span>
+                <p className="text-sm text-gray-400 mt-2">No se encontraron empresas</p>
+              </div>
+            ) : (
+              empresasFiltradas.map((empresa) => {
+                const id = String(empresa.id)
+                const checked = isEmpresaChecked(id)
+                const expanded = expandedEmpresas.includes(id)
+                const sucursales = getSucursalesEmpresa(id)
+                const asig = asignaciones.find(a => a.empresaId === id)
+                const sucCount = asig ? asig.sucursalIds.length : 0
+                return (
+                  <div key={empresa.id} className={`rounded-lg border transition-all ${checked ? 'border-[#2c528c]/40 bg-[#2c528c]/[0.03] dark:bg-[#2c528c]/10' : 'border-gray-100 dark:border-gray-800'}`}>
+                    <div className="flex items-center gap-3 p-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleEmpresa({ id, nombre: empresa.name })}
+                        className={`size-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors ${checked ? 'bg-[#2c528c] border-[#2c528c]' : 'border-gray-300 dark:border-gray-600'}`}
+                      >
+                        {checked && <span className="material-symbols-outlined text-white text-sm">check</span>}
+                      </button>
+
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleEmpresa({ id, nombre: empresa.name })}>
+                        <p className={`text-sm font-semibold truncate ${checked ? 'text-[#2c528c]' : 'text-slate-700 dark:text-gray-200'}`}>{empresa.name}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 truncate">RUT: {empresa.tax_id}</p>
+                      </div>
+
+                      {checked && sucursales.length > 0 && (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {sucCount > 0 && (
+                            <span className="text-[10px] font-bold bg-[#2c528c] text-white rounded-full px-2 py-0.5">{sucCount}</span>
+                          )}
+                          <button type="button" onClick={() => toggleExpand(id)} className="text-gray-400 hover:text-[#2c528c] transition-colors">
+                            <span className={`material-symbols-outlined text-xl transition-transform ${expanded ? 'rotate-180' : ''}`}>expand_more</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {checked && sucursales.length === 0 && (
+                        <span className="text-[10px] text-gray-400 italic flex-shrink-0">Sin sucursales</span>
+                      )}
+                    </div>
+
+                    {checked && expanded && sucursales.length > 0 && (
+                      <div className="border-t border-gray-100 dark:border-gray-800 bg-white/60 dark:bg-gray-800/30 px-3 pb-3 pt-2">
+                        <div className="flex items-center justify-between mb-2 pl-8">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sucursales</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleAllSucursales(id)}
+                            className="text-[10px] font-bold text-[#2c528c] hover:text-blue-800 transition-colors"
+                          >
+                            {sucursales.every(s => asig?.sucursalIds.includes(s.id)) ? 'Deseleccionar todas' : 'Seleccionar todas'}
+                          </button>
+                        </div>
+                        <div className="space-y-1 pl-8">
+                          {sucursales.map((suc) => {
+                            const sucChecked = isSucursalChecked(id, suc.id)
+                            return (
+                              <button
+                                type="button"
+                                key={suc.id}
+                                onClick={() => toggleSucursal(id, suc.id)}
+                                className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
+                                  sucChecked
+                                    ? 'border-[#2c528c]/30 bg-[#2c528c]/5 dark:bg-[#2c528c]/10'
+                                    : 'border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                }`}
+                              >
+                                <div className={`size-4 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors ${
+                                  sucChecked ? 'bg-[#2c528c] border-[#2c528c]' : 'border-gray-300 dark:border-gray-600'
+                                }`}>
+                                  {sucChecked && <span className="material-symbols-outlined text-white text-xs">check</span>}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs font-semibold truncate ${sucChecked ? 'text-[#2c528c]' : 'text-slate-600 dark:text-gray-300'}`}>{suc.nombre}</p>
+                                  <p className="text-[10px] text-gray-400 truncate">{suc.lugar}</p>
+                                </div>
+                                {sucChecked && (
+                                  <span className="material-symbols-outlined text-[#2c528c] text-sm flex-shrink-0">check_circle</span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <div className="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-800/50 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-3">
+            <button
+              onClick={onClose}
+              className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                onSave(asignaciones)
+                onClose()
+              }}
+              className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+            >
+              <span className="material-symbols-outlined text-lg">save</span>
+              Confirmar
             </button>
           </div>
         </div>
-
-        <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-800">
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-            <input
-              type="text"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar empresa por nombre o RUT..."
-              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-[#2c528c] focus:ring-1 focus:ring-[#2c528c] transition-colors dark:text-gray-200"
-            />
-          </div>
-        </div>
-
-        <div className="px-3 sm:px-4 pt-3 flex items-center justify-between">
-          <button onClick={toggleAll} className="text-xs font-semibold text-[#2c528c] hover:text-blue-800 transition-colors">
-            {seleccionadas.length === companies.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
-          </button>
-          <span className="text-xs text-gray-400">
-            {seleccionadas.length} de {companies.length} seleccionadas
-          </span>
-        </div>
-
-        <div className="p-3 sm:p-4 max-h-[300px] overflow-y-auto space-y-1.5">
-          {empresasFiltradas.length === 0 ? (
-            <div className="text-center py-8">
-              <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600">search_off</span>
-              <p className="text-sm text-gray-400 mt-2">No se encontraron empresas</p>
-            </div>
-          ) : (
-            empresasFiltradas.map((empresa) => {
-              const id = String(empresa.id)
-              const isSelected = seleccionadas.includes(id)
-              return (
-                <button
-                  key={empresa.id}
-                  onClick={() => toggleEmpresa(id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                    isSelected
-                      ? 'border-[#2c528c] bg-[#2c528c]/5 dark:bg-[#2c528c]/10'
-                      : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}
-                >
-                  <div className={`size-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors ${
-                    isSelected ? 'bg-[#2c528c] border-[#2c528c]' : 'border-gray-300 dark:border-gray-600'
-                  }`}>
-                    {isSelected && <span className="material-symbols-outlined text-white text-sm">check</span>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold truncate ${isSelected ? 'text-[#2c528c]' : 'text-slate-700 dark:text-gray-200'}`}>
-                      {empresa.name}
-                    </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate">RUT: {empresa.tax_id}</p>
-                  </div>
-                  {isSelected && <span className="material-symbols-outlined text-[#2c528c] text-lg flex-shrink-0">verified</span>}
-                </button>
-              )
-            })
-          )}
-        </div>
-
-        <div className="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-800/50 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-3">
-          <button
-            onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => {
-              onSave(seleccionadas)
-              onClose()
-            }}
-            className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-          >
-            <span className="material-symbols-outlined text-lg">save</span>
-            Confirmar Asignación
-          </button>
-        </div>
       </div>
-    </div>
   )
 }
 
@@ -175,6 +306,7 @@ export default function NuevoUsuarioPage() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
+  const [branchesByCompany, setBranchesByCompany] = useState<Record<string, Branch[]>>({})
   const validGroups = ['Gerente', 'Operador', 'Visualizador'] as const
   const [modalEmpresas, setModalEmpresas] = useState(false)
   const [formData, setFormData] = useState({
@@ -185,7 +317,7 @@ export default function NuevoUsuarioPage() {
     phone: '',
     is_superuser: false,
     is_staff: false,
-    company_ids: [] as string[],
+    asignaciones: [] as AsignacionEmpresa[],
     group_name: '',
     profile: {
       rut: '',
@@ -256,21 +388,46 @@ export default function NuevoUsuarioPage() {
     setFormData({ ...formData, [name]: target.value })
   }
 
-  const handleSaveEmpresas = (ids: string[]) => {
-    setFormData({ ...formData, company_ids: ids })
+  const ensureBranches = async (companyId: string) => {
+    if (branchesByCompany[companyId]) return
+
+    const res = await BranchService.listBranches({ company_id: companyId })
+    if (!res.success) return
+
+    const list = normalizeBranchesResponse(res.data)
+    setBranchesByCompany(prev => ({ ...prev, [companyId]: list }))
+  }
+
+  const handleSaveAsignaciones = (asignaciones: AsignacionEmpresa[]) => {
+    setFormData({ ...formData, asignaciones })
+    const totalSuc = asignaciones.reduce((acc, a) => acc + a.sucursalIds.length, 0)
     toast({
-      title: 'Empresas actualizadas',
-      description: `Se asignaron ${ids.length} empresa(s) al usuario.`,
+      title: 'Asignaciones actualizadas',
+      description: `${asignaciones.length} empresa(s) y ${totalSuc} sucursal(es) asignada(s).`,
     })
   }
 
-  const handleRemoveEmpresa = (id: string) => {
-    const nuevas = formData.company_ids.filter(x => x !== id)
-    setFormData({ ...formData, company_ids: nuevas })
-    const nombre = companies.find(c => String(c.id) === id)?.name ?? id
+  const handleRemoveEmpresa = (empresaId: string) => {
+    const removed = formData.asignaciones.find(a => a.empresaId === empresaId)
+    const nuevas = formData.asignaciones.filter(a => a.empresaId !== empresaId)
+    setFormData({ ...formData, asignaciones: nuevas })
     toast({
       title: 'Empresa removida',
-      description: `"${nombre}" fue removida del usuario.`,
+      description: `"${removed?.empresaNombre ?? empresaId}" fue removida.`,
+      variant: 'destructive',
+    })
+  }
+
+  const handleRemoveSucursal = (empresaId: string, sucursalId: string) => {
+    const suc = (branchesByCompany[empresaId] ?? []).find(b => String(b.id) === sucursalId)
+    const nuevas = formData.asignaciones.map(a => {
+      if (a.empresaId !== empresaId) return a
+      return { ...a, sucursalIds: a.sucursalIds.filter(id => id !== sucursalId) }
+    })
+    setFormData({ ...formData, asignaciones: nuevas })
+    toast({
+      title: 'Sucursal removida',
+      description: `"${suc?.name ?? sucursalId}" fue removida.`,
       variant: 'destructive',
     })
   }
@@ -306,7 +463,7 @@ export default function NuevoUsuarioPage() {
       phone: formData.phone,
       is_superuser: formData.is_superuser,
       is_staff: formData.is_staff,
-      company_ids: formData.company_ids.map(Number),
+      branch_ids: formData.asignaciones.flatMap(a => a.sucursalIds).map(Number),
       group_name: groupName,
       profile: {
         rut: formData.profile.rut,
@@ -497,10 +654,116 @@ export default function NuevoUsuarioPage() {
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Empresas asignadas
+                  <label htmlFor="group_name" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Grupo
+                  </label>
+                  <select
+                    id="group_name"
+                    name="group_name"
+                    value={formData.group_name}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  >
+                    <option value="">Seleccione grupo</option>
+                    {validGroups.map((group) => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="is_superuser"
+                  name="is_superuser"
+                  type="checkbox"
+                  checked={formData.is_superuser}
+                  onChange={handleChange}
+                  className="h-4 w-4 rounded border-gray-300 text-[#2c528c] focus:ring-[#2c528c]"
+                />
+                <label htmlFor="is_superuser" className="text-sm text-slate-600 dark:text-gray-300">
+                  Es super usuario
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Información de Contacto y Empresa */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#2c528c]">contact_mail</span>
+              <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Información de Contacto y Empresa</h3>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label htmlFor="profile.rut" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    RUT
+                  </label>
+                  <input
+                    id="profile.rut"
+                    name="profile.rut"
+                    type="text"
+                    value={formData.profile.rut}
+                    onChange={handleChange}
+                    placeholder="12.345.678-9"
+                    required
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="profile.fecha_nacimiento" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Fecha nacimiento
+                  </label>
+                  <input
+                    id="profile.fecha_nacimiento"
+                    name="profile.fecha_nacimiento"
+                    type="date"
+                    value={formData.profile.fecha_nacimiento}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label htmlFor="profile.telefono" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Teléfono (perfil)
+                  </label>
+                  <input
+                    id="profile.telefono"
+                    name="profile.telefono"
+                    type="text"
+                    value={formData.profile.telefono}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Número credencial
+                  </label>
+                  <input
+                    id="profile.numero_credencial"
+                    name="profile.numero_credencial"
+                    type="number"
+                    value={String(formData.profile.numero_credencial)}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                    Empresas y sucursales asignadas
                   </label>
                   <button
                     type="button"
@@ -508,52 +771,82 @@ export default function NuevoUsuarioPage() {
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2c528c] hover:text-blue-800 transition-colors"
                   >
                     <span className="material-symbols-outlined text-base">add_circle</span>
-                    Asignar empresas
+                    Asignar
                   </button>
                 </div>
 
-                {formData.company_ids.length === 0 ? (
+                {formData.asignaciones.length === 0 ? (
                   <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-6 text-center">
                     <span className="material-symbols-outlined text-3xl text-gray-300 dark:text-gray-600">domain_disabled</span>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">No hay empresas asignadas</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">No hay empresas ni sucursales asignadas</p>
                     <button
                       type="button"
                       onClick={() => setModalEmpresas(true)}
                       className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#2c528c] hover:text-blue-800 transition-colors"
                     >
                       <span className="material-symbols-outlined text-base">add</span>
-                      Asignar ahora
+                      Asignar
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {formData.company_ids.map((id) => {
-                      const nombre = companies.find(c => String(c.id) === id)?.name ?? id
+                    {formData.asignaciones.map((asig) => {
+                      const sucursales = (branchesByCompany[asig.empresaId] ?? []).map(branchToSucursal)
+                      const sucursalesAsignadas = sucursales.filter(s => asig.sucursalIds.includes(s.id))
+
                       return (
-                        <div
-                          key={id}
-                          className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30 group hover:border-gray-200 dark:hover:border-gray-700 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="size-8 rounded-lg bg-[#2c528c]/10 flex items-center justify-center flex-shrink-0">
-                              <span className="material-symbols-outlined text-[#2c528c] text-base">corporate_fare</span>
+                        <div key={asig.empresaId} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/30 group">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="size-8 rounded-lg bg-[#2c528c]/10 flex items-center justify-center flex-shrink-0">
+                                <span className="material-symbols-outlined text-[#2c528c] text-base">corporate_fare</span>
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-slate-700 dark:text-gray-200 truncate block">{asig.empresaNombre}</span>
+                                {sucursalesAsignadas.length > 0 && (
+                                  <span className="text-[10px] text-gray-400">{sucursalesAsignadas.length} sucursal(es)</span>
+                                )}
+                              </div>
                             </div>
-                            <span className="text-sm font-medium text-slate-700 dark:text-gray-200 truncate">{nombre}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEmpresa(asig.empresaId)}
+                              className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all flex-shrink-0 ml-2"
+                              title="Remover empresa"
+                            >
+                              <span className="material-symbols-outlined text-lg">close</span>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveEmpresa(id)}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all flex-shrink-0 ml-2"
-                            title="Remover empresa"
-                          >
-                            <span className="material-symbols-outlined text-lg">close</span>
-                          </button>
+
+                          {sucursalesAsignadas.length > 0 && (
+                            <div className="divide-y divide-gray-50 dark:divide-gray-800">
+                              {sucursalesAsignadas.map((suc) => (
+                                <div key={suc.id} className="flex items-center justify-between px-3 py-2 pl-14 group/suc hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="material-symbols-outlined text-gray-400 text-sm flex-shrink-0">subdirectory_arrow_right</span>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-medium text-slate-600 dark:text-gray-300 truncate">{suc.nombre}</p>
+                                      <p className="text-[10px] text-gray-400 truncate">{suc.lugar}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSucursal(asig.empresaId, suc.id)}
+                                    className="opacity-0 group-hover/suc:opacity-100 text-gray-400 hover:text-red-500 transition-all flex-shrink-0 ml-2"
+                                    title="Remover sucursal"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">close</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
                       <span className="material-symbols-outlined text-xs">info</span>
-                      {formData.company_ids.length} empresa(s) asignada(s) al usuario
+                      {formData.asignaciones.length} empresa(s), {formData.asignaciones.reduce((acc, a) => acc + a.sucursalIds.length, 0)} sucursal(es) asignada(s)
                     </p>
                   </div>
                 )}
@@ -574,18 +867,20 @@ export default function NuevoUsuarioPage() {
               className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-12 py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
             >
               <span className="material-symbols-outlined text-xl">save</span>
-              Guardar
+              Guardar Cambios
             </button>
           </div>
         </form>
       </div>
 
-      <AsignarEmpresasModal
+      <AsignarEmpresasSucursalesModal
         open={modalEmpresas}
         onClose={() => setModalEmpresas(false)}
         companies={companies}
-        selectedIds={formData.company_ids}
-        onSave={handleSaveEmpresas}
+        branchesByCompany={branchesByCompany}
+        onEnsureBranches={ensureBranches}
+        asignacionesActuales={formData.asignaciones}
+        onSave={handleSaveAsignaciones}
       />
     </>
   )

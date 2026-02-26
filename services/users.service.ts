@@ -51,7 +51,16 @@ export interface User {
     is_active: boolean
     is_staff: boolean
     is_superuser: boolean
-    companies: UserCompany[]
+    companies?: UserCompany[]
+    branches?: Array<{
+        id: number
+        name: string
+        location?: string
+        code?: string
+        company?: UserCompany
+        company_id?: number
+        company_name?: string
+    }>
     groups: UserGroup[]
     profile: UserProfile | null
     permissions?: string[]
@@ -64,6 +73,7 @@ export interface GetUsersParams {
     page?: number
     page_size?: number
     search?: string
+    branch_id?: number | string
 }
 
 export interface CreateUserPayload {
@@ -74,7 +84,7 @@ export interface CreateUserPayload {
     phone: string
     is_superuser: boolean
     is_staff: boolean
-    company_ids: number[]
+    branch_ids: number[]
     group_name: string
     profile: {
         rut: string
@@ -96,8 +106,9 @@ export interface UpdateUserPayload {
     first_name?: string
     last_name?: string
     phone?: string
+    is_superuser?: boolean
     is_staff?: boolean
-    company_ids?: number[]
+    branch_ids?: number[]
     group_name?: string
     profile?: {
         rut: string
@@ -113,11 +124,36 @@ export interface UpdateUserPayload {
     }
 }
 
+export type OperatorDocumentType =
+    | "pilot_license"
+    | "medical_cert"
+    | "training_cert"
+    | "rpa_endorsement"
+    | "insurance"
+    | "other_1"
+    | "other_2"
+    | "other_3"
+
+export interface OperatorDocument {
+    id: number
+    operator_email: string
+    document_type: OperatorDocumentType
+    document_type_display: string
+    original_filename: string
+    file_url: string
+    file_size: number
+    file_size_display: string
+    mime_type: string
+    expiration_date: string | null
+    created_at: string
+    updated_at: string
+}
+
 function toQueryString(params: object): string {
     const searchParams = new URLSearchParams()
 
     for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-        if (value === undefined || value === null) continue
+        if (value === undefined || value === null || value === "") continue
         searchParams.set(key, String(value))
     }
 
@@ -165,6 +201,41 @@ export class UsersService {
         userId: number | string,
     ): Promise<ApiResponse<CredentialImageResponse>> {
         return apiClient.get<CredentialImageResponse>(`users/${userId}/credential-image/`)
+    }
+
+    static async listOperatorDocuments(
+        userId: number | string,
+    ): Promise<ApiResponse<OperatorDocument[]>> {
+        return apiClient.get<OperatorDocument[]>(`users/${userId}/operator-documents/`)
+    }
+
+    static async uploadOperatorDocument(
+        userId: number | string,
+        payload: {
+            document_type: OperatorDocumentType
+            file: File
+            expiration_date?: string
+        },
+    ): Promise<ApiResponse<OperatorDocument>> {
+        const form = new FormData()
+        form.append("document_type", payload.document_type)
+        form.append("file", payload.file)
+        if (payload.expiration_date) form.append("expiration_date", payload.expiration_date)
+        return apiClient.post<OperatorDocument>(`users/${userId}/operator-documents/`, form)
+    }
+
+    static async getOperatorDocument(
+        userId: number | string,
+        documentType: OperatorDocumentType,
+    ): Promise<ApiResponse<OperatorDocument>> {
+        return apiClient.get<OperatorDocument>(`users/${userId}/operator-documents/${documentType}/`)
+    }
+
+    static async deleteOperatorDocument(
+        userId: number | string,
+        documentType: OperatorDocumentType,
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.delete<unknown>(`users/${userId}/operator-documents/${documentType}/`)
     }
 }
 

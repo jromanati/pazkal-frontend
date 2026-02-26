@@ -149,6 +149,22 @@ class ApiClient {
     return this.refreshPromise
   }
 
+  private async parseJsonSafely(response: Response): Promise<any> {
+    if (response.status === 204) return null
+
+    const contentLength = response.headers.get("content-length")
+    if (contentLength === "0") return null
+
+    const text = await response.text()
+    if (!text) return null
+
+    try {
+      return JSON.parse(text)
+    } catch {
+      return null
+    }
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseUrl}${endpoint}`
@@ -168,7 +184,7 @@ class ApiClient {
       }
 
       let response = await doFetch(mergedHeaders)
-      let data = await response.json()
+      let data = await this.parseJsonSafely(response)
 
       if (!response.ok) {
         if (response.status === 401 && isTokenNotValidError(data)) {
@@ -180,7 +196,7 @@ class ApiClient {
               ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
             }
             response = await doFetch(retryHeaders)
-            data = await response.json()
+            data = await this.parseJsonSafely(response)
           }
         }
 
@@ -200,7 +216,7 @@ class ApiClient {
 
       return {
         success: true,
-        data,
+        data: data ?? undefined,
       }
     } catch (error) {
       return {

@@ -6,6 +6,15 @@ type RefreshResponse = {
   refresh: string
 }
 
+type MePayload = {
+  first_name?: string
+  last_name?: string
+  phone?: string
+  avatar?: string
+  current_password?: string
+  new_password?: string
+}
+
 export class AuthService {
   private static token: string | null = null
   private static tokenExpiry: number | null = null
@@ -45,6 +54,14 @@ export class AuthService {
       }
     }
     return response
+  }
+
+  static async getMe<T = unknown>(): Promise<ApiResponse<T>> {
+    return apiClient.get<T>("auth/me/")
+  }
+
+  static async updateMe<T = unknown>(payload: MePayload): Promise<ApiResponse<T>> {
+    return apiClient.patch<T>("auth/me/", payload)
   }
 
   static async refresh(): Promise<ApiResponse<RefreshResponse>> {
@@ -124,12 +141,12 @@ export class AuthService {
 
   static async getValidToken(): Promise<string | null> {
     if (this.isTokenValid()) {
-      return this.token
+      return localStorage.getItem("token")
     }
 
-    const authResponse = await this.authenticate()
-    if (authResponse.success && authResponse.data) {
-      return authResponse.data.access
+    const refreshResponse = await this.refresh()
+    if (refreshResponse.success && refreshResponse.data?.access) {
+      return refreshResponse.data.access
     }
 
     return null

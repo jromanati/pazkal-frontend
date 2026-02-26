@@ -9,8 +9,11 @@ import { useToast } from '@/hooks/use-toast'
 import { FlightLogsService, type FlightLog } from '@/services/flights-logs.service'
 import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
 import { UsersService, type User } from '@/services/users.service'
+import { DronesService } from '@/services/drones.service'
+import { BranchService } from '@/services/branches.service'
 import { canAction, canView } from '@/lib/permissions'
 import { SearchableSelect } from '@/components/ui/searchable-select'
+import { buildFlightLogPdfHtml, downloadPdfFromHtml, openPrintPdf, type PdfDroneSection } from '@/lib/pdf'
 
 export default function BitacoraVueloPage() {
   const { toggle } = useSidebar()
@@ -75,6 +78,87 @@ export default function BitacoraVueloPage() {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const handlePdf = async (logId: number) => {
+    setLoading(true)
+    try {
+      const res = await FlightLogsService.getLog(logId)
+      if (!res.success || !res.data) {
+        toast({
+          title: 'No se pudo generar PDF',
+          description: res.error || 'Error al obtener la bitácora.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const log: any = res.data
+
+      let branchId: string = String(log?.branch?.id ?? log?.branch_id ?? '')
+      if (!branchId) {
+        const orderId = log?.flight_order?.id
+        if (orderId) {
+          const orderRes = await FlightOrdersService.getOrder(orderId)
+          if (orderRes.success && orderRes.data) {
+            const o: any = orderRes.data
+            branchId = String(o?.branch?.id ?? o?.branch_id ?? '')
+          }
+        }
+      }
+
+      if (branchId) {
+        const branchRes = await BranchService.getBranch(branchId)
+        if (branchRes.success && branchRes.data) {
+          log.branch = log.branch ?? { id: Number(branchId) }
+          log.branch.name = log.branch.name ?? branchRes.data.name
+          log.company = log.company ?? branchRes.data.company
+        }
+      }
+
+      const rawDrones: unknown = log.drones
+      const dronesArray: any[] = Array.isArray(rawDrones) ? rawDrones : []
+
+      const drones: PdfDroneSection[] = []
+      for (const d of dronesArray) {
+        const droneId = (d as any)?.id
+        if (!droneId) continue
+
+        const detailRes = await DronesService.getDrone(droneId)
+        const detail: any = detailRes.success ? detailRes.data : undefined
+        const batteriesRaw: unknown = detail?.batteries
+        const batteries = Array.isArray(batteriesRaw) ? batteriesRaw : []
+
+        drones.push({
+          title: `${(detail?.brand ?? d.brand ?? '').trim()} ${(detail?.model ?? d.model ?? '').trim()}`.trim() || `ID ${droneId}`,
+          registration_number: detail?.registration_number ?? d.registration_number,
+          serial_number: detail?.serial_number ?? d.serial_number,
+          batteries: batteries.map((b: any) => ({
+            battery_label: String(b?.name ?? b?.label ?? b?.id ?? 'Batería'),
+            cycle_count: b?.cycle_count,
+          })),
+        })
+      }
+
+      const pdf = buildFlightLogPdfHtml({ log, drones })
+      try {
+        await downloadPdfFromHtml({
+          title: pdf.title,
+          html: pdf.html,
+          filename: `${pdf.documentTitle || 'bitacora_vuelo'}.pdf`,
+        })
+      } catch {
+        openPrintPdf({ title: pdf.title, html: pdf.html, documentTitle: pdf.documentTitle })
+      }
+    } catch {
+      toast({
+        title: 'No se pudo generar PDF',
+        description: 'Error al generar el PDF.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -334,6 +418,7 @@ export default function BitacoraVueloPage() {
                         <button 
                           className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
                           title="Descargar PDF"
+                          onClick={() => handlePdf(bitacora.id)}
                         >
                           <span className="material-symbols-outlined text-xl">picture_as_pdf</span>
                         </button>
@@ -401,7 +486,11 @@ export default function BitacoraVueloPage() {
                     >
                       <span className="material-symbols-outlined text-lg">{canUpdate ? 'edit' : 'visibility'}</span>
                     </Link>
-                    <button className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors">
+                    <button
+                      className="p-1.5 text-slate-400 hover:text-[#2c528c] transition-colors"
+                      title="Descargar PDF"
+                      onClick={() => handlePdf(bitacora.id)}
+                    >
                       <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
                     </button>
                     {canDelete && (

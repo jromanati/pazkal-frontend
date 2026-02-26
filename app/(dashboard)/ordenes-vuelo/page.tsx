@@ -10,7 +10,9 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@/services/flight-orders.service'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { UsersService, type User } from '@/services/users.service'
+import { BranchService } from '@/services/branches.service'
 import { canAction, canView } from '@/lib/permissions'
+import { buildFlightOrderPdfHtml, downloadPdfFromHtml, openPrintPdf } from '@/lib/pdf'
 
 export default function OrdenesVueloPage() {
   const { toggle } = useSidebar()
@@ -89,6 +91,52 @@ export default function OrdenesVueloPage() {
   const formatFecha = (fecha: string) => {
     const date = new Date(fecha)
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const handlePdf = async (orderId: number) => {
+    setLoading(true)
+    try {
+      const res = await FlightOrdersService.getOrder(orderId)
+      if (!res.success || !res.data) {
+        toast({
+          title: 'No se pudo generar PDF',
+          description: res.error || 'Error al obtener la orden de vuelo.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const order: any = res.data
+
+      const branchId: string = String(order?.branch?.id ?? order?.branch_id ?? '')
+      if (branchId) {
+        const branchRes = await BranchService.getBranch(branchId)
+        if (branchRes.success && branchRes.data) {
+          order.branch = order.branch ?? { id: Number(branchId) }
+          order.branch.name = order.branch.name ?? branchRes.data.name
+          order.company = order.company ?? branchRes.data.company
+        }
+      }
+
+      const pdf = buildFlightOrderPdfHtml({ order })
+      try {
+        await downloadPdfFromHtml({
+          title: pdf.title,
+          html: pdf.html,
+          filename: `${pdf.documentTitle || 'orden_vuelo'}.pdf`,
+        })
+      } catch {
+        openPrintPdf({ title: pdf.title, html: pdf.html, documentTitle: pdf.documentTitle })
+      }
+    } catch {
+      toast({
+        title: 'No se pudo generar PDF',
+        description: 'Error al generar el PDF.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -374,6 +422,14 @@ export default function OrdenesVueloPage() {
                         >
                           <span className="material-symbols-outlined text-xl">{canUpdate ? 'edit' : 'visibility'}</span>
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => handlePdf(orden.id)}
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-slate-400 hover:text-[#2c528c] transition-colors"
+                          title="Descargar PDF"
+                        >
+                          <span className="material-symbols-outlined text-xl">picture_as_pdf</span>
+                        </button>
                         {canDelete && (
                           <button
                             onClick={() => handleDelete(orden)}
@@ -454,6 +510,14 @@ export default function OrdenesVueloPage() {
                   <span className="material-symbols-outlined text-base">{canUpdate ? 'edit' : 'visibility'}</span>
                   {canUpdate ? 'Editar' : 'Ver'}
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => handlePdf(orden.id)}
+                  className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-[#2c528c] hover:bg-[#2c528c]/5 rounded-lg transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                  PDF
+                </button>
                 {canDelete && (
                   <button
                     onClick={() => handleDelete(orden)}

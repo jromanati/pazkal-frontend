@@ -666,3 +666,174 @@ export const tiposUsuarioMock = [
   { value: 'gerencia', label: 'Gerencia' },
   { value: 'visualizador', label: 'Visualizador' }
 ];
+
+// Equipos (Drones)
+export interface BateriaEquipo {
+  id: string;
+  nombre: string;
+  ciclos: number;
+}
+
+export interface Paracaidas {
+  marca: string;
+  modelo: string;
+  pesoResistencia: string;
+}
+
+export interface Equipo {
+  id: string;
+  numeroRegistro: string;
+  marca: string;
+  modelo: string;
+  numeroSerie: string;
+  pesoMaxDespegue: string;
+  baterias: BateriaEquipo[];
+  tieneParacaidas: boolean;
+  paracaidas?: Paracaidas;
+  empresaId?: string;
+  empresaNombre?: string;
+  estado: 'activo' | 'mantenimiento' | 'inactivo';
+}
+
+export const equiposMock: Equipo[] = [
+  {
+    id: '1',
+    numeroRegistro: 'DGAC-1234',
+    marca: 'DJI',
+    modelo: 'Matrice 300 RTK',
+    numeroSerie: 'SN-1ZNBG4H001234',
+    pesoMaxDespegue: '9.0 kg',
+    baterias: [
+      { id: 'b1', nombre: 'TB60-001', ciclos: 120 },
+      { id: 'b2', nombre: 'TB60-002', ciclos: 85 },
+    ],
+    tieneParacaidas: true,
+    paracaidas: { marca: 'ParaZero', modelo: 'SafeAir M300', pesoResistencia: '15 kg' },
+    empresaId: '1',
+    empresaNombre: 'Aerolíneas Pacífico',
+    estado: 'activo'
+  },
+  {
+    id: '2',
+    numeroRegistro: 'DGAC-5678',
+    marca: 'senseFly',
+    modelo: 'eBee X',
+    numeroSerie: 'SN-EB0045678',
+    pesoMaxDespegue: '1.6 kg',
+    baterias: [
+      { id: 'b3', nombre: 'eBee-BAT-01', ciclos: 200 },
+    ],
+    tieneParacaidas: false,
+    empresaId: '2',
+    empresaNombre: 'Carga Austral',
+    estado: 'activo'
+  },
+  {
+    id: '3',
+    numeroRegistro: 'DGAC-9999',
+    marca: 'DJI',
+    modelo: 'Mavic 3 Enterprise',
+    numeroSerie: 'SN-MVE3T099887',
+    pesoMaxDespegue: '1.05 kg',
+    baterias: [
+      { id: 'b4', nombre: 'M3E-BAT-01', ciclos: 150 },
+      { id: 'b5', nombre: 'M3E-BAT-02', ciclos: 90 },
+      { id: 'b6', nombre: 'M3E-BAT-03', ciclos: 45 },
+    ],
+    tieneParacaidas: true,
+    paracaidas: { marca: 'ParaZero', modelo: 'SafeAir Mavic', pesoResistencia: '3 kg' },
+    empresaId: '3',
+    empresaNombre: 'Vuelos Express',
+    estado: 'mantenimiento'
+  },
+  {
+    id: '4',
+    numeroRegistro: 'DGAC-4567',
+    marca: 'DJI',
+    modelo: 'Inspire 2',
+    numeroSerie: 'SN-INS2P004567',
+    pesoMaxDespegue: '4.25 kg',
+    baterias: [
+      { id: 'b7', nombre: 'TB50-001', ciclos: 310 },
+      { id: 'b8', nombre: 'TB50-002', ciclos: 280 },
+    ],
+    tieneParacaidas: false,
+    empresaId: '4',
+    empresaNombre: 'Andes Aero',
+    estado: 'inactivo'
+  },
+];
+
+// Sucursales
+export interface DocumentoSucursal {
+  id: string;
+  tipo: string;
+  nombre: string;
+  fechaCarga: string;
+}
+
+export interface Sucursal {
+  id: string;
+  nombre: string;
+  lugar: string;
+  fechaContrato: string;
+  documentos: DocumentoSucursal[];
+}
+
+export const tiposDocumentoSucursalMock = [
+  { value: 'especificacion_operacion', label: 'Especificación de operación' },
+  { value: 'poliza_seguros', label: 'Póliza de seguros' },
+  { value: 'resolucion_jac', label: 'Resolución JAC' },
+  { value: 'registros_equipo', label: 'Registros de equipo' },
+  { value: 'autorizaciones_vuelo', label: 'Autorizaciones de vuelo' },
+  { value: 'carta_mandante', label: 'Carta de autorización mandante' },
+  { value: 'autorizaciones_especiales', label: 'Autorizaciones especiales' },
+  { value: 'mantencion_aeronave', label: 'Mantención de aeronave' },
+];
+
+export const sucursalesMockByEmpresa: Record<string, Sucursal[]> = {
+  '2': [
+    {
+      id: 's1',
+      nombre: 'Sucursal Santiago Centro',
+      lugar: 'Av. Libertador B. O\'Higgins 1200, Santiago',
+      fechaContrato: '2022-03-15',
+      documentos: [
+        { id: 'd1', tipo: 'especificacion_operacion', nombre: 'EspecOp_SCL_2024.pdf', fechaCarga: '2024-01-10' },
+        { id: 'd2', tipo: 'poliza_seguros', nombre: 'Poliza_SCL_2024.pdf', fechaCarga: '2024-02-05' },
+      ]
+    },
+    {
+      id: 's2',
+      nombre: 'Sucursal Antofagasta',
+      lugar: 'Calle Balmaceda 456, Antofagasta',
+      fechaContrato: '2023-06-01',
+      documentos: [
+        { id: 'd3', tipo: 'autorizaciones_vuelo', nombre: 'AutorizVuelo_ANF.pdf', fechaCarga: '2023-07-12' },
+      ]
+    },
+  ],
+  '20': [
+    {
+      id: 's3',
+      nombre: 'Sucursal Puerto Montt',
+      lugar: 'Av. Diego Portales 900, Puerto Montt',
+      fechaContrato: '2021-11-20',
+      documentos: []
+    },
+  ],
+  '30': [],
+  '4': [
+    {
+      id: 's4',
+      nombre: 'Sucursal Temuco',
+      lugar: 'Calle Caupolicán 320, Temuco',
+      fechaContrato: '2024-01-10',
+      documentos: [
+        { id: 'd4', tipo: 'resolucion_jac', nombre: 'ResJAC_TMC_2024.pdf', fechaCarga: '2024-01-15' },
+        { id: 'd5', tipo: 'carta_mandante', nombre: 'CartaMandante_TMC.pdf', fechaCarga: '2024-02-20' },
+        { id: 'd6', tipo: 'registros_equipo', nombre: 'RegEquipo_TMC.pdf', fechaCarga: '2024-03-01' },
+      ]
+    },
+  ],
+};

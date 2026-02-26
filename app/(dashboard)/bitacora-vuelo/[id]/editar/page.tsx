@@ -8,10 +8,9 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
-import { rpasDisponiblesMock } from '@/lib/mock-data'
 import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
-import { UsersService } from '@/services/users.service'
 import { FlightLogsService, type FlightLog } from '@/services/flights-logs.service'
+import { DronesService, type DroneDetail, type DroneListItem } from '@/services/drones.service'
 import { canAction, canView } from '@/lib/permissions'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 
@@ -25,6 +24,12 @@ export default function EditarBitacoraPage() {
   const [bitacora, setBitacora] = useState<FlightLog | null>(null)
   const [flightOrders, setFlightOrders] = useState<FlightOrder[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FlightOrder | null>(null)
+  const [orderBranchId, setOrderBranchId] = useState<string>('')
+  const [availableDrones, setAvailableDrones] = useState<DroneListItem[]>([])
+  const [logDrones, setLogDrones] = useState<DroneListItem[]>([])
+  const [selectedDroneIds, setSelectedDroneIds] = useState<string[]>([''])
+  const [droneDetails, setDroneDetails] = useState<Record<string, DroneDetail>>({})
+  const [droneBatteries, setDroneBatteries] = useState<Record<string, Array<{ key: string; label: string; inicio: string; termino: string }>>>({})
   const canRead = mounted && canView('bitacora_vuelo')
   const canUpdate = mounted && canAction('bitacora_vuelo', 'update')
   
@@ -97,6 +102,19 @@ export default function EditarBitacoraPage() {
 
         const b = res.data
         setBitacora(b)
+        setLogDrones(() => {
+          const dronesRaw: unknown = (b as any).drones
+          return Array.isArray(dronesRaw) ? (dronesRaw as DroneListItem[]) : []
+        })
+        setSelectedDroneIds(() => {
+          const dronesRaw: unknown = (b as any).drones
+          const drones = Array.isArray(dronesRaw) ? dronesRaw : []
+          const ids = drones
+            .map((d) => String((d as any)?.id ?? ''))
+            .filter(Boolean)
+
+          return ids.length ? ids : ['']
+        })
         setFormData({
           folio: b.log_number ?? '',
           ordenN: String(b.flight_order?.id ?? ''),
@@ -134,11 +152,104 @@ export default function EditarBitacoraPage() {
     const id = Number(formData.ordenN)
     if (!id) {
       setSelectedOrder(null)
+      setOrderBranchId('')
+      setAvailableDrones([])
+      setSelectedDroneIds([''])
+      setDroneDetails({})
+      setDroneBatteries({})
       return
     }
     const found = flightOrders.find((o) => o.id === id) ?? null
     setSelectedOrder(found)
   }, [formData.ordenN, flightOrders])
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
+    const id = Number(formData.ordenN)
+    if (!id) return
+
+    const run = async () => {
+      const orderRes = await FlightOrdersService.getOrder(id)
+      if (!orderRes.success || !orderRes.data) {
+        toast({
+          title: 'No se pudo cargar la orden',
+          description: orderRes.error || 'Error al obtener la orden de vuelo.',
+          variant: 'destructive',
+        })
+        setOrderBranchId('')
+        setAvailableDrones([])
+        return
+      }
+
+      const branchId = String(orderRes.data.branch?.id ?? orderRes.data.branch_id ?? '')
+      setOrderBranchId(branchId)
+      if (!branchId) {
+        setAvailableDrones([])
+        return
+      }
+
+      const dronesRes = await DronesService.listAvailableDrones({ branch_id: branchId })
+      if (!dronesRes.success || !dronesRes.data) {
+        toast({
+          title: 'No se pudieron cargar los equipos',
+          description: dronesRes.error || 'Error al obtener equipos disponibles.',
+          variant: 'destructive',
+        })
+        setAvailableDrones([])
+        return
+      }
+
+      const list = dronesRes.data
+      setAvailableDrones((prev) => {
+        const map = new Map<string, DroneListItem>()
+        for (const d of [...logDrones, ...list, ...prev]) {
+          map.set(String(d.id), d)
+        }
+        return Array.from(map.values())
+      })
+
+      setSelectedDroneIds((prev) => {
+        const mergedIds = new Set<string>([...logDrones, ...list].map((d) => String(d.id)))
+        const valid = prev.filter((id) => !id || mergedIds.has(String(id)))
+        return valid.length ? valid : ['']
+      })
+    }
+
+    run()
+  }, [mounted, canRead, formData.ordenN, toast, logDrones])
+
+  useEffect(() => {
+    const ids = Array.from(new Set(selectedDroneIds.filter(Boolean)))
+    if (!ids.length) return
+
+    const missing = ids.filter((id) => !droneDetails[id])
+    if (!missing.length) return
+
+    const run = async () => {
+      for (const id of missing) {
+        const res = await DronesService.getDrone(id)
+        if (!res.success || !res.data) continue
+
+        const detail = res.data as DroneDetail
+        setDroneDetails((prev) => ({ ...prev, [id]: detail }))
+
+        const batteriesRaw: unknown = (detail as any).batteries
+        const batteries = Array.isArray(batteriesRaw) ? batteriesRaw : []
+        setDroneBatteries((prev) => ({
+          ...prev,
+          [id]: batteries.map((b) => ({
+            key: String((b as any)?.id ?? b),
+            label: String((b as any)?.name ?? b),
+            inicio: '',
+            termino: '',
+          })),
+        }))
+      }
+    }
+
+    run()
+  }, [selectedDroneIds, droneDetails])
 
   const toApiTime = (t: string) => {
     if (!t) return undefined
@@ -192,11 +303,17 @@ export default function EditarBitacoraPage() {
 
     setLoading(true)
     try {
+      const droneIds = selectedDroneIds
+        .filter(Boolean)
+        .map((x) => Number(x))
+        .filter((x) => Number.isFinite(x))
+
       const payload = {
         flight_order_id: Number(formData.ordenN),
         log_number: formData.folio.trim(),
         flight_date: formData.fecha,
         operator_id: operatorId,
+        drone_ids: droneIds.length ? droneIds : undefined,
         copilot_name: formData.copiloto,
         location: formData.lugar,
         rpa1_model: formData.rpa1Modelo,
@@ -304,23 +421,12 @@ export default function EditarBitacoraPage() {
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <fieldset disabled={!canUpdate} className="contents">
           {/* Información General */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mb-6">
             <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-[#2c528c]">assignment</span>
               <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Información General</h3>
             </div>
             <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-              <div>
-                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Folio</label>
-                <input
-                  type="text"
-                  name="folio"
-                  value={formData.folio}
-                  onChange={handleInputChange}
-                  placeholder="Folio de bitácora"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
-                />
-              </div>
               <div>
                 <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Orden N°</label>
                 <SearchableSelect<string>
@@ -333,6 +439,17 @@ export default function EditarBitacoraPage() {
                   placeholder="Seleccionar Orden"
                   searchPlaceholder="Buscar orden..."
                   triggerClassName="text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Folio</label>
+                <input
+                  type="text"
+                  name="folio"
+                  value={formData.folio}
+                  onChange={handleInputChange}
+                  placeholder="Folio de bitácora"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>
               <div>
@@ -380,7 +497,7 @@ export default function EditarBitacoraPage() {
           </div>
 
           {/* Equipos RPA y Baterías */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
             {/* Equipos RPA */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
               <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -388,59 +505,81 @@ export default function EditarBitacoraPage() {
                 <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Equipos RPA</h3>
               </div>
               <div className="p-4 sm:p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">RPA 1 (Modelo)</label>
-                    <select 
-                      name="rpa1Modelo"
-                      value={formData.rpa1Modelo}
-                      onChange={handleInputChange}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                    >
-                      <option value="">Seleccionar</option>
-                      {rpasDisponiblesMock.map(rpa => (
-                        <option key={rpa.value} value={rpa.label}>{rpa.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Registro RPA 1</label>
-                    <input 
-                      type="text"
-                      name="rpa1Registro"
-                      value={formData.rpa1Registro}
-                      onChange={handleInputChange}
-                      placeholder="DGAC-XXXX"
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">RPA 2 (Modelo)</label>
-                    <select 
-                      name="rpa2Modelo"
-                      value={formData.rpa2Modelo}
-                      onChange={handleInputChange}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                    >
-                      <option value="">Seleccionar</option>
-                      {rpasDisponiblesMock.map(rpa => (
-                        <option key={rpa.value} value={rpa.label}>{rpa.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">Registro RPA 2</label>
-                    <input 
-                      type="text"
-                      name="rpa2Registro"
-                      value={formData.rpa2Registro}
-                      onChange={handleInputChange}
-                      placeholder="DGAC-YYYY"
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                    />
-                  </div>
+                {selectedDroneIds.map((value, idx) => {
+                  const allDrones = (() => {
+                    const map = new Map<string, DroneListItem>()
+                    for (const d of [...logDrones, ...availableDrones]) map.set(String(d.id), d)
+                    return Array.from(map.values())
+                  })()
+                  const selectedSet = new Set(selectedDroneIds.filter(Boolean))
+                  const options = allDrones
+                    .filter((d) => String(d.id) === String(value) || !selectedSet.has(String(d.id)))
+                    .map((d) => ({
+                      value: String(d.id),
+                      label: `${d.brand ?? ''} ${d.model ?? ''} (${d.registration_number ?? ''})`.trim(),
+                    }))
+
+                  return (
+                    <div key={idx} className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
+                          Equipo {idx + 1}
+                        </label>
+                        <SearchableSelect<string>
+                          value={value}
+                          onChange={(v) => {
+                            setSelectedDroneIds((prev) => {
+                              const next = [...prev]
+                              next[idx] = v
+                              return next
+                            })
+
+                            setDroneBatteries((prev) => {
+                              const prevId = value
+                              if (!prevId || v) return prev
+                              const { [prevId]: _, ...rest } = prev
+                              return rest
+                            })
+                          }}
+                          options={[{ value: '', label: 'Seleccionar' }, ...options]}
+                          placeholder="Seleccionar"
+                          searchPlaceholder="Buscar equipo..."
+                          triggerClassName="text-xs"
+                          disabled={!orderBranchId}
+                        />
+                      </div>
+
+                      {selectedDroneIds.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const idToRemove = selectedDroneIds[idx]
+                            setSelectedDroneIds((prev) => prev.filter((_, i) => i !== idx))
+                            if (idToRemove) {
+                              setDroneBatteries((prev) => {
+                                const { [idToRemove]: _, ...rest } = prev
+                                return rest
+                              })
+                            }
+                          }}
+                          className="h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-bold text-slate-600 hover:text-red-600 hover:border-red-200 dark:text-gray-300 dark:hover:text-red-400 transition-colors"
+                        >
+                          Quitar
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDroneIds((prev) => [...prev, ''])}
+                    disabled={!orderBranchId || selectedDroneIds.filter(Boolean).length >= availableDrones.length}
+                    className="text-xs font-bold text-[#2c528c] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Agregar equipo
+                  </button>
                 </div>
               </div>
             </div>
@@ -452,48 +591,92 @@ export default function EditarBitacoraPage() {
                 <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Ciclos de Baterías</h3>
               </div>
               <div className="p-4 sm:p-6">
-                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800/50">
-                      <tr>
-                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] font-bold text-gray-500 uppercase">Batería</th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] font-bold text-gray-500 uppercase">Inicio (%)</th>
-                        <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] font-bold text-gray-500 uppercase">Término (%)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {baterias.map((bat, index) => (
-                        <tr key={bat.bateria}>
-                          <td className="px-3 sm:px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300">{bat.bateria}</td>
-                          <td className="px-2 py-2">
-                            <input 
-                              type="number"
-                              value={bat.inicio}
-                              onChange={(e) => handleBateriaChange(index, 'inicio', e.target.value)}
-                              placeholder="0"
-                              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input 
-                              type="number"
-                              value={bat.termino}
-                              onChange={(e) => handleBateriaChange(index, 'termino', e.target.value)}
-                              placeholder="0"
-                              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-4">
+                  {selectedDroneIds.filter(Boolean).map((droneId, index) => {
+                    const detail = droneDetails[droneId]
+                    const bats = droneBatteries[droneId] ?? []
+
+                    return (
+                      <div key={droneId} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                          <div className="text-xs font-bold text-slate-700 dark:text-gray-200">
+                            Equipo {index + 1}: {detail ? `${detail.brand ?? ''} ${detail.model ?? ''}`.trim() : 'Cargando...'}
+                          </div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">
+                            {detail?.registration_number ? `Registro: ${detail.registration_number}` : ''}
+                          </div>
+                        </div>
+
+                        <div className="p-3 sm:p-4">
+                          {bats.length ? (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead className="bg-gray-50 dark:bg-gray-800/50">
+                                  <tr>
+                                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] font-bold text-gray-500 uppercase">Batería</th>
+                                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] font-bold text-gray-500 uppercase">Inicio (%)</th>
+                                    <th className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] font-bold text-gray-500 uppercase">Término (%)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                  {bats.map((bat, batIdx) => (
+                                    <tr key={`${droneId}-${bat.key}`}>
+                                      <td className="px-3 sm:px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300">{bat.label}</td>
+                                      <td className="px-2 py-2">
+                                        <input
+                                          type="number"
+                                          value={bat.inicio}
+                                          onChange={(e) =>
+                                            setDroneBatteries((prev) => ({
+                                              ...prev,
+                                              [droneId]: (prev[droneId] ?? []).map((x, i) => (i === batIdx ? { ...x, inicio: e.target.value } : x)),
+                                            }))
+                                          }
+                                          placeholder="0"
+                                          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
+                                        />
+                                      </td>
+                                      <td className="px-2 py-2">
+                                        <input
+                                          type="number"
+                                          value={bat.termino}
+                                          onChange={(e) =>
+                                            setDroneBatteries((prev) => ({
+                                              ...prev,
+                                              [droneId]: (prev[droneId] ?? []).map((x, i) => (i === batIdx ? { ...x, termino: e.target.value } : x)),
+                                            }))
+                                          }
+                                          placeholder="0"
+                                          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
+                                        />
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500">
+                              {detail ? 'Este equipo no tiene baterías registradas.' : 'Cargando baterías...'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {!selectedDroneIds.filter(Boolean).length && (
+                    <div className="text-xs text-gray-500 text-center">
+                      Selecciona un equipo para ver sus baterías disponibles.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Registro de Tiempo */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mb-6">
             <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-[#2c528c]">schedule</span>
               <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Registro de Tiempo</h3>
@@ -554,7 +737,7 @@ export default function EditarBitacoraPage() {
           </div>
 
           {/* Detalles de Operación */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mb-6">
             <div className="p-3 sm:p-4 bg-slate-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-[#2c528c]">description</span>
               <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Detalles de Operación</h3>
@@ -607,7 +790,8 @@ export default function EditarBitacoraPage() {
             {canUpdate && (
               <button 
                 type="submit"
-                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-sm font-bold px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                disabled={loading}
+                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold px-8 sm:px-10 py-2.5 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
               >
                 <span className="material-symbols-outlined text-xl">save</span>
                 Guardar Cambios

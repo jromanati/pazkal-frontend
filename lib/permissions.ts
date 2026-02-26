@@ -4,6 +4,7 @@ export type Section =
   | "dashboard"
   | "empresas"
   | "operadores"
+  | "equipos"
   | "ordenes_vuelo"
   | "bitacora_vuelo"
   | "usuarios"
@@ -55,6 +56,7 @@ const permissions: Record<Role, Record<Section, Record<Action, boolean>>> = {
     dashboard: { read: true, create: true, update: true, delete: true },
     empresas: { read: true, create: true, update: true, delete: true },
     operadores: { read: true, create: true, update: true, delete: true },
+    equipos: { read: true, create: true, update: true, delete: true },
     ordenes_vuelo: { read: true, create: true, update: true, delete: true },
     bitacora_vuelo: { read: true, create: true, update: true, delete: true },
     usuarios: { read: true, create: true, update: true, delete: true },
@@ -63,6 +65,7 @@ const permissions: Record<Role, Record<Section, Record<Action, boolean>>> = {
     dashboard: { read: true, create: false, update: false, delete: false },
     empresas: { read: true, create: false, update: false, delete: false },
     operadores: { read: true, create: false, update: false, delete: false },
+    equipos: { read: true, create: false, update: false, delete: false },
     ordenes_vuelo: { read: true, create: true, update: true, delete: true },
     bitacora_vuelo: { read: true, create: true, update: true, delete: true },
     usuarios: { read: false, create: false, update: false, delete: false },
@@ -71,6 +74,7 @@ const permissions: Record<Role, Record<Section, Record<Action, boolean>>> = {
     dashboard: { read: false, create: false, update: false, delete: false },
     empresas: { read: true, create: false, update: false, delete: false },
     operadores: { read: false, create: false, update: false, delete: false },
+    equipos: { read: false, create: false, update: false, delete: false },
     ordenes_vuelo: { read: true, create: false, update: false, delete: false },
     bitacora_vuelo: { read: true, create: true, update: true, delete: false },
     usuarios: { read: false, create: false, update: false, delete: false },
@@ -79,6 +83,7 @@ const permissions: Record<Role, Record<Section, Record<Action, boolean>>> = {
     dashboard: { read: true, create: false, update: false, delete: false },
     empresas: { read: true, create: false, update: false, delete: false },
     operadores: { read: true, create: false, update: false, delete: false },
+    equipos: { read: false, create: false, update: false, delete: false },
     ordenes_vuelo: { read: true, create: false, update: false, delete: false },
     bitacora_vuelo: { read: true, create: false, update: false, delete: false },
     usuarios: { read: false, create: false, update: false, delete: false },

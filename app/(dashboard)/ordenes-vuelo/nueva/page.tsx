@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { tiposTrabajoAereoMock } from '@/lib/mock-data'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
+import { BranchService, type Branch } from '@/services/branches.service'
 import { UsersService, type User } from '@/services/users.service'
 import { FlightOrdersService, type FlightOrderStatus } from '@/services/flight-orders.service'
 import { canAction } from '@/lib/permissions'
@@ -22,6 +23,7 @@ export default function NuevaOrdenVueloPage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [operators, setOperators] = useState<User[]>([])
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function NuevaOrdenVueloPage() {
   const canCreate = mounted && canAction('ordenes_vuelo', 'create')
   const [formData, setFormData] = useState({
     empresa: '',
+    sucursal: '',
     numeroOrden: '',
     piloto: '',
     observador: '',
@@ -56,29 +59,67 @@ export default function NuevaOrdenVueloPage() {
     if (!mounted || !canCreate) return
 
     const load = async () => {
-      const [companiesRes, usersRes] = await Promise.all([
-        CompanyService.getCompanies({ page: 1, page_size: 1000 }),
-        UsersService.getUsers({ page: 1, page_size: 1000 }),
-      ])
+      const companiesRes = await CompanyService.getCompanies({ page: 1, page_size: 1000 })
 
       if (companiesRes.success && companiesRes.data?.results) {
         setCompanies(companiesRes.data.results)
-      }
-
-      if (usersRes.success && usersRes.data?.results) {
-        setOperators(usersRes.data.results)
       }
     }
 
     load()
   }, [mounted, canCreate])
 
-  const operadoresFiltrados = operators
-    .filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
-    .filter((u) => {
-      if (!formData.empresa) return true
-      return (u.companies || []).some((c) => String(c.id) === String(formData.empresa))
+  const loadBranches = async (companyId: string) => {
+    if (!companyId) {
+      setBranches([])
+      return
+    }
+    const res = await BranchService.listBranches({ company_id: companyId })
+    if (res.success && res.data) {
+      const data: any = res.data
+      const list: Branch[] = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : []
+      setBranches(list)
+      return
+    }
+    toast({
+      title: 'No se pudieron cargar las sucursales',
+      description: res.error || 'Error al obtener sucursales.',
+      variant: 'destructive',
     })
+  }
+
+  const loadOperators = async (branchId: string) => {
+    if (!branchId) {
+      setOperators([])
+      return
+    }
+
+    const res = await UsersService.getUsers({ page: 1, page_size: 1000, branch_id: branchId })
+    if (!res.success || !res.data?.results) {
+      toast({
+        title: 'No se pudieron cargar los operadores',
+        description: res.error || 'Error al obtener operadores.',
+        variant: 'destructive',
+      })
+      setOperators([])
+      return
+    }
+
+    const ops = res.data.results.filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+    setOperators(ops)
+  }
+
+  useEffect(() => {
+    if (!mounted || !canCreate) return
+    loadBranches(formData.empresa)
+  }, [mounted, canCreate, formData.empresa])
+
+  useEffect(() => {
+    if (!mounted || !canCreate) return
+    loadOperators(formData.sucursal)
+  }, [mounted, canCreate, formData.sucursal])
+
+  const operadoresFiltrados = operators
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,6 +130,14 @@ export default function NuevaOrdenVueloPage() {
       toast({
         title: 'Faltan datos',
         description: 'Debe seleccionar una empresa.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!formData.sucursal) {
+      toast({
+        title: 'Faltan datos',
+        description: 'Debe seleccionar una sucursal.',
         variant: 'destructive',
       })
       return
@@ -113,7 +162,7 @@ export default function NuevaOrdenVueloPage() {
     setLoading(true)
     try {
       const res = await FlightOrdersService.createOrder({
-        company_id: Number(formData.empresa),
+        branch_id: Number(formData.sucursal),
         order_number: formData.numeroOrden.trim(),
         operator_id: Number(formData.piloto),
         observer_name: formData.observador,
@@ -189,26 +238,12 @@ export default function NuevaOrdenVueloPage() {
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <fieldset disabled={!canCreate} className="contents">
           {/* Información General */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mb-6">
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-[#2c528c]">info</span>
               <h3 className="font-bold text-slate-700 dark:text-gray-200 text-sm sm:text-base">Información General</h3>
             </div>
             <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <div>
-                <label htmlFor="empresa" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
-                  Empresa
-                </label>
-                <SearchableSelect
-                  value={formData.empresa || null}
-                  onChange={(v) => {
-                    setFormData((prev) => ({ ...prev, empresa: String(v), piloto: '' }))
-                  }}
-                  options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
-                  placeholder="Seleccione una empresa"
-                  searchPlaceholder="Buscar empresa..."
-                />
-              </div>
               <div>
                 <label htmlFor="numeroOrden" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Número de orden
@@ -224,6 +259,35 @@ export default function NuevaOrdenVueloPage() {
                 />
               </div>
               <div>
+                <label htmlFor="empresa" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
+                  Empresa
+                </label>
+                <SearchableSelect
+                  value={formData.empresa || null}
+                  onChange={(v) => {
+                    setFormData((prev) => ({ ...prev, empresa: String(v), sucursal: '', piloto: '' }))
+                  }}
+                  options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
+                  placeholder="Seleccione una empresa"
+                  searchPlaceholder="Buscar empresa..."
+                />
+              </div>
+
+              <div>
+                <label htmlFor="sucursal" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
+                  Sucursal
+                </label>
+                <SearchableSelect
+                  value={formData.sucursal || null}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, sucursal: String(v), piloto: '' }))}
+                  options={branches.map((b) => ({ value: String(b.id), label: b.name }))}
+                  placeholder="Seleccione una sucursal"
+                  searchPlaceholder="Buscar sucursal..."
+                  disabled={!formData.empresa}
+                />
+              </div>
+              
+              <div>
                 <label htmlFor="piloto" className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 sm:mb-2">
                   Piloto
                 </label>
@@ -236,7 +300,7 @@ export default function NuevaOrdenVueloPage() {
                   }))}
                   placeholder="Seleccione un piloto"
                   searchPlaceholder="Buscar piloto..."
-                  disabled={!formData.empresa}
+                  disabled={!formData.sucursal}
                 />
               </div>
               <div>
@@ -449,7 +513,8 @@ export default function NuevaOrdenVueloPage() {
             {canCreate && (
               <button
                 type="submit"
-                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-bold px-6 sm:px-8 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                disabled={loading}
+                className="w-full sm:w-auto bg-[#2c528c] hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-bold px-6 sm:px-8 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
               >
                 <span className="material-symbols-outlined text-lg sm:text-xl">save</span>
                 Guardar Orden
