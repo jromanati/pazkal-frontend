@@ -224,29 +224,33 @@ export default function NuevaBitacoraPage() {
 
     setLoading(true)
     try {
-      const droneIds = selectedDroneIds
+      const dronesPayload = selectedDroneIds
         .filter(Boolean)
-        .map((x) => Number(x))
-        .filter((x) => Number.isFinite(x))
+        .map((droneId) => {
+          const bats = droneBatteries[droneId] ?? []
+          const batteries = bats
+            .map((b) => ({
+              battery_id: Number(b.key),
+              start_percentage: b.inicio === '' ? NaN : Number(b.inicio),
+              end_percentage: b.termino === '' ? NaN : Number(b.termino),
+            }))
+            .filter((b) => Number.isFinite(b.battery_id) && Number.isFinite(b.start_percentage) && Number.isFinite(b.end_percentage))
+
+          return {
+            drone_id: Number(droneId),
+            batteries,
+          }
+        })
+        .filter((d) => Number.isFinite(d.drone_id))
 
       const payload = {
         flight_order_id: Number(formData.ordenN),
         log_number: formData.folio.trim(),
         operator_id: operatorId,
         flight_date: formData.fecha,
-        drone_ids: droneIds.length ? droneIds : undefined,
+        drones: dronesPayload.length ? dronesPayload : undefined,
         copilot_name: formData.copiloto,
         location: formData.lugar,
-        rpa1_model: formData.rpa1Modelo,
-        rpa1_registration: formData.rpa1Registro,
-        rpa2_model: formData.rpa2Modelo,
-        rpa2_registration: formData.rpa2Registro,
-        battery1_start: baterias[0]?.inicio ? Number(baterias[0].inicio) : undefined,
-        battery1_end: baterias[0]?.termino ? Number(baterias[0].termino) : undefined,
-        battery2_start: baterias[1]?.inicio ? Number(baterias[1].inicio) : undefined,
-        battery2_end: baterias[1]?.termino ? Number(baterias[1].termino) : undefined,
-        battery3_start: baterias[2]?.inicio ? Number(baterias[2].inicio) : undefined,
-        battery3_end: baterias[2]?.termino ? Number(baterias[2].termino) : undefined,
         departure_time_utc: toApiTime(formData.utcSalida),
         arrival_time_utc: toApiTime(formData.utcLlegada),
         departure_time_local: toApiTime(formData.gtmSalida),

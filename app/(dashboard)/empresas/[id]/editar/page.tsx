@@ -431,7 +431,7 @@ export default function EditarEmpresaPage() {
 
         {activeTab === 'sucursales' && (
          <SucursalesEmpresa
-           empresaId={Array.isArray(params.id) ? params.id[0] : params.id}
+           empresaId={String(Array.isArray(params.id) ? (params.id[0] ?? '') : (params.id ?? ''))}
            canUpdate={canUpdate}
          />
         )}
@@ -751,13 +751,12 @@ function SucursalesEmpresa({ empresaId, canUpdate }: { empresaId: string; canUpd
   const documentTypes: Array<{ value: BranchDocumentType; label: string }> = [
     { value: 'operations_spec', label: 'Especificación de operación' },
     { value: 'insurance', label: 'Póliza de seguros' },
-    { value: 'flight_auth', label: 'Autorizaciones de vuelo' },
-    { value: 'kmz', label: 'KMZ (Archivos de georreferencia)' },
-    { value: 'special_auth', label: 'Autorizaciones especiales' },
     { value: 'jac_resolution', label: 'Resolución JAC' },
-    { value: 'other_1', label: 'Otros 1' },
-    { value: 'other_2', label: 'Otros 2' },
-    { value: 'other_3', label: 'Otros 3' },
+    { value: 'equipment_records', label: 'Registros de equipo' },
+    { value: 'flight_auth', label: 'Autorizaciones de vuelo' },
+    { value: 'mandate_auth', label: 'Carta de autorización mandante' },
+    { value: 'special_auth', label: 'Autorizaciones especiales' },
+    { value: 'aircraft_maint', label: 'Mantención de aeronave' },
   ]
 
   const getTipoLabel = (tipo: string) => documentTypes.find(t => t.value === tipo)?.label || tipo
@@ -955,9 +954,20 @@ function SucursalesEmpresa({ empresaId, canUpdate }: { empresaId: string; canUpd
   const removeDocumento = async (branchId: number, docType: BranchDocumentType) => {
     if (!canUpdate) return
     const id = String(branchId)
+
+    const documentId = (documentsByBranch[id] ?? []).find(d => d.document_type === docType)?.id
+    if (!documentId) {
+      toast({
+        title: 'No se pudo eliminar el documento',
+        description: 'No se encontró el ID del documento a eliminar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      const res = await BranchService.deleteBranchDocument(branchId, docType)
+      const res = await BranchService.deleteBranchDocument(branchId, documentId)
       if (!res.success) {
         toast({
           title: 'No se pudo eliminar el documento',

@@ -10,7 +10,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@/services/flight-orders.service'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { UsersService, type User } from '@/services/users.service'
-import { BranchService } from '@/services/branches.service'
+import { BranchService, type Branch } from '@/services/branches.service'
 import { canAction, canView } from '@/lib/permissions'
 import { buildFlightOrderPdfHtml, downloadPdfFromHtml, openPrintPdf } from '@/lib/pdf'
 
@@ -31,8 +31,10 @@ export default function OrdenesVueloPage() {
   const [ordenes, setOrdenes] = useState<FlightOrder[]>([])
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
   const [operators, setOperators] = useState<User[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [filters, setFilters] = useState({
     company_id: '',
+    branch_id: '',
     operator_id: '',
     date_from: '',
     date_to: '',
@@ -164,10 +166,34 @@ export default function OrdenesVueloPage() {
   useEffect(() => {
     if (!mounted || !canRead) return
 
+    const loadBranches = async () => {
+      if (!filters.company_id) {
+        setBranches([])
+        return
+      }
+
+      const res = await BranchService.listBranches({ company_id: filters.company_id })
+      if (res.success && res.data) {
+        const data: any = res.data
+        const list: Branch[] = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : []
+        setBranches(list)
+        return
+      }
+
+      setBranches([])
+    }
+
+    loadBranches()
+  }, [mounted, canRead, filters.company_id])
+
+  useEffect(() => {
+    if (!mounted || !canRead) return
+
     const run = async () => {
       setLoading(true)
       try {
         const res = await FlightOrdersService.listOrders({
+          branch_id: filters.branch_id ? Number(filters.branch_id) : undefined,
           company_id: filters.company_id ? Number(filters.company_id) : undefined,
           operator_id: filters.operator_id ? Number(filters.operator_id) : undefined,
           date_from: filters.date_from || undefined,
@@ -201,7 +227,7 @@ export default function OrdenesVueloPage() {
     }
 
     run()
-  }, [mounted, canRead, filters.company_id, filters.operator_id, filters.date_from, filters.date_to, filters.status, filters.search, filters.ordering, toast])
+  }, [mounted, canRead, filters.company_id, filters.branch_id, filters.operator_id, filters.date_from, filters.date_to, filters.status, filters.search, filters.ordering, toast])
 
   if (mounted && !canRead) {
     return (
@@ -237,14 +263,20 @@ export default function OrdenesVueloPage() {
         </div>
 
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4 sm:p-5 mb-4 sm:mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_company">
                 Empresa
               </label>
               <SearchableSelect<string>
                 value={filters.company_id}
-                onChange={(v) => setFilters((p) => ({ ...p, company_id: v }))}
+                onChange={(v) =>
+                  setFilters((p) => ({
+                    ...p,
+                    company_id: v,
+                    branch_id: '',
+                  }))
+                }
                 options={[
                   { value: '', label: 'Todas' },
                   ...companies.map((c) => ({ value: String(c.id), label: c.name })),
@@ -252,6 +284,24 @@ export default function OrdenesVueloPage() {
                 placeholder="Todas"
                 searchPlaceholder="Buscar empresa..."
                 triggerClassName="text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1" htmlFor="f_branch">
+                Sucursal
+              </label>
+              <SearchableSelect<string>
+                value={filters.branch_id}
+                onChange={(v) => setFilters((p) => ({ ...p, branch_id: v }))}
+                options={[
+                  { value: '', label: 'Todas' },
+                  ...branches.map((b) => ({ value: String(b.id), label: b.name })),
+                ]}
+                placeholder="Todas"
+                searchPlaceholder="Buscar sucursal..."
+                triggerClassName="text-xs"
+                disabled={!filters.company_id}
               />
             </div>
 
@@ -354,6 +404,7 @@ export default function OrdenesVueloPage() {
               onClick={() =>
                 setFilters({
                   company_id: '',
+                  branch_id: '',
                   operator_id: '',
                   date_from: '',
                   date_to: '',

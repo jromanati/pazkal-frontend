@@ -107,18 +107,20 @@ export default function EditarEquipoPage() {
 
       const d = res.data
       setEquipo(d)
+
+      const formatDecimalForInput = (v: unknown) => String(v ?? '').replace('.', ',')
       setForm({
         numeroRegistro: d.registration_number || '',
         marca: d.brand || '',
         modelo: d.model || '',
         numeroSerie: d.serial_number || '',
-        pesoMaxDespegue: d.max_takeoff_weight_kg || '',
+        pesoMaxDespegue: formatDecimalForInput(d.max_takeoff_weight_kg),
         empresaId: d.company_id ? String(d.company_id) : '',
         sucursalId: d.branch_id ? String(d.branch_id) : '',
         tieneParacaidas: Boolean(d.has_parachute),
         paracaidasMarca: d?.parachute?.brand || '',
         paracaidasModelo: d?.parachute?.model || '',
-        paracaidasPeso: d?.parachute?.resistance_weight_kg || '',
+        paracaidasPeso: formatDecimalForInput(d?.parachute?.resistance_weight_kg),
         notas: d.notes || '',
       })
 
@@ -135,12 +137,25 @@ export default function EditarEquipoPage() {
     })()
   }, [droneId])
 
+  const sanitizeDecimalInput = (value: string) => {
+    const cleaned = value.replace(/[^0-9,]/g, '')
+    const parts = cleaned.split(',')
+    if (parts.length <= 1) return cleaned
+    return `${parts[0]},${parts.slice(1).join('').slice(0, 2)}`
+  }
+
+  const toApiDecimal = (value: string) => value.replace(',', '.').trim()
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     if (type === 'checkbox') {
       setForm({ ...form, [name]: (e.target as HTMLInputElement).checked })
     } else {
-      setForm({ ...form, [name]: value })
+      if (name === 'pesoMaxDespegue' || name === 'paracaidasPeso') {
+        setForm({ ...form, [name]: sanitizeDecimalInput(value) })
+      } else {
+        setForm({ ...form, [name]: value })
+      }
     }
   }
 
@@ -181,7 +196,7 @@ export default function EditarEquipoPage() {
           brand: form.marca,
           model: form.modelo,
           serial_number: form.numeroSerie,
-          max_takeoff_weight_kg: form.pesoMaxDespegue,
+          max_takeoff_weight_kg: toApiDecimal(form.pesoMaxDespegue),
           has_parachute: form.tieneParacaidas,
           notes: form.notas || '',
           batteries: baterias
@@ -194,7 +209,7 @@ export default function EditarEquipoPage() {
             ? {
                 brand: form.paracaidasMarca || '',
                 model: form.paracaidasModelo || '',
-                resistance_weight_kg: form.paracaidasPeso || '',
+                resistance_weight_kg: toApiDecimal(form.paracaidasPeso) || '',
               }
             : undefined,
         }
@@ -234,7 +249,7 @@ export default function EditarEquipoPage() {
 
   return (
     <>
-      <Header icon="flight" title={`Editar: ${equipo.brand} ${equipo.model}`} onMenuClick={toggle} />
+      <Header icon="drone" title={`Editar: ${equipo.brand} ${equipo.model}`} onMenuClick={toggle} />
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full">
         {/* Title bar */}

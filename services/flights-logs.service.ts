@@ -63,24 +63,26 @@ export interface ListFlightLogsParams {
   search?: string
 }
 
+export interface FlightLogDroneBatteryPayload {
+  battery_id: number
+  start_percentage: number
+  end_percentage: number
+}
+
+export interface FlightLogDronePayload {
+  drone_id: number
+  batteries: FlightLogDroneBatteryPayload[]
+}
+
 export interface CreateFlightLogPayload {
   flight_order_id: number
   log_number: string
   operator_id: number
   flight_date: string
   drone_ids?: number[]
+  drones?: FlightLogDronePayload[]
   copilot_name?: string
   location: string
-  rpa1_model?: string
-  rpa1_registration?: string
-  rpa2_model?: string
-  rpa2_registration?: string
-  battery1_start?: number
-  battery1_end?: number
-  battery2_start?: number
-  battery2_end?: number
-  battery3_start?: number
-  battery3_end?: number
   departure_time_utc?: string
   arrival_time_utc?: string
   departure_time_local?: string

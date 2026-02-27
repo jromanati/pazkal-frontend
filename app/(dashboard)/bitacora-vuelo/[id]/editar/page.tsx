@@ -30,6 +30,7 @@ export default function EditarBitacoraPage() {
   const [selectedDroneIds, setSelectedDroneIds] = useState<string[]>([''])
   const [droneDetails, setDroneDetails] = useState<Record<string, DroneDetail>>({})
   const [droneBatteries, setDroneBatteries] = useState<Record<string, Array<{ key: string; label: string; inicio: string; termino: string }>>>({})
+  const [logDronePayloads, setLogDronePayloads] = useState<Array<{ drone_id: number; batteries: Array<{ battery_id: number; start_percentage: number; end_percentage: number }> }>>([])
   const canRead = mounted && canView('bitacora_vuelo')
   const canUpdate = mounted && canAction('bitacora_vuelo', 'update')
   
@@ -106,11 +107,31 @@ export default function EditarBitacoraPage() {
           const dronesRaw: unknown = (b as any).drones
           return Array.isArray(dronesRaw) ? (dronesRaw as DroneListItem[]) : []
         })
+        setLogDronePayloads(() => {
+          const raw: unknown = (b as any).drones
+          if (!Array.isArray(raw)) return []
+          return raw
+            .map((d: any) => {
+              const drone_id = Number(d?.drone_id ?? d?.id)
+              const batsRaw: unknown = d?.batteries
+              const bats = Array.isArray(batsRaw) ? batsRaw : []
+              const batteries = bats
+                .map((bt: any) => ({
+                  battery_id: Number(bt?.battery_id ?? bt?.id),
+                  start_percentage: Number(bt?.start_percentage),
+                  end_percentage: Number(bt?.end_percentage),
+                }))
+                .filter((bt: any) => Number.isFinite(bt.battery_id) && Number.isFinite(bt.start_percentage) && Number.isFinite(bt.end_percentage))
+
+              return { drone_id, batteries }
+            })
+            .filter((d: any) => Number.isFinite(d.drone_id))
+        })
         setSelectedDroneIds(() => {
           const dronesRaw: unknown = (b as any).drones
           const drones = Array.isArray(dronesRaw) ? dronesRaw : []
           const ids = drones
-            .map((d) => String((d as any)?.id ?? ''))
+            .map((d) => String((d as any)?.drone_id ?? (d as any)?.id ?? ''))
             .filter(Boolean)
 
           return ids.length ? ids : ['']
@@ -121,10 +142,10 @@ export default function EditarBitacoraPage() {
           fecha: b.flight_date ?? '',
           lugar: b.location ?? '',
           copiloto: b.copilot_name ?? '',
-          rpa1Modelo: b.rpa1_model ?? '',
-          rpa1Registro: b.rpa1_registration ?? '',
-          rpa2Modelo: b.rpa2_model ?? '',
-          rpa2Registro: b.rpa2_registration ?? '',
+          rpa1Modelo: '',
+          rpa1Registro: '',
+          rpa2Modelo: '',
+          rpa2Registro: '',
           utcSalida: b.departure_time_utc ? b.departure_time_utc.slice(0, 5) : '',
           utcLlegada: b.arrival_time_utc ? b.arrival_time_utc.slice(0, 5) : '',
           gtmSalida: b.departure_time_local ? b.departure_time_local.slice(0, 5) : '',
@@ -134,12 +155,6 @@ export default function EditarBitacoraPage() {
           actividadRealizada: b.activity_description ?? '',
           comentarios: b.comments ?? '',
         })
-
-        setBaterias([
-          { bateria: 'BATERÍA 1', inicio: b.battery1_start != null ? String(b.battery1_start) : '', termino: b.battery1_end != null ? String(b.battery1_end) : '' },
-          { bateria: 'BATERÍA 2', inicio: b.battery2_start != null ? String(b.battery2_start) : '', termino: b.battery2_end != null ? String(b.battery2_end) : '' },
-          { bateria: 'BATERÍA 3', inicio: b.battery3_start != null ? String(b.battery3_start) : '', termino: b.battery3_end != null ? String(b.battery3_end) : '' },
-        ])
       } finally {
         setLoading(false)
       }
@@ -241,15 +256,23 @@ export default function EditarBitacoraPage() {
           [id]: batteries.map((b) => ({
             key: String((b as any)?.id ?? b),
             label: String((b as any)?.name ?? b),
-            inicio: '',
-            termino: '',
+            inicio: (() => {
+              const match = logDronePayloads.find((x) => String(x.drone_id) === String(id))
+              const val = match?.batteries?.find((bt) => String(bt.battery_id) === String((b as any)?.id))?.start_percentage
+              return val === null || val === undefined || Number.isNaN(Number(val)) ? '' : String(val)
+            })(),
+            termino: (() => {
+              const match = logDronePayloads.find((x) => String(x.drone_id) === String(id))
+              const val = match?.batteries?.find((bt) => String(bt.battery_id) === String((b as any)?.id))?.end_percentage
+              return val === null || val === undefined || Number.isNaN(Number(val)) ? '' : String(val)
+            })(),
           })),
         }))
       }
     }
 
     run()
-  }, [selectedDroneIds, droneDetails])
+  }, [selectedDroneIds, droneDetails, logDronePayloads])
 
   const toApiTime = (t: string) => {
     if (!t) return undefined
@@ -308,24 +331,32 @@ export default function EditarBitacoraPage() {
         .map((x) => Number(x))
         .filter((x) => Number.isFinite(x))
 
+      const dronesPayload = selectedDroneIds
+        .filter(Boolean)
+        .map((droneId) => {
+          const bats = droneBatteries[droneId] ?? []
+          const batteries = bats
+            .map((b) => ({
+              battery_id: Number(b.key),
+              start_percentage: b.inicio === '' ? NaN : Number(b.inicio),
+              end_percentage: b.termino === '' ? NaN : Number(b.termino),
+            }))
+            .filter((b) => Number.isFinite(b.battery_id) && Number.isFinite(b.start_percentage) && Number.isFinite(b.end_percentage))
+
+          return {
+            drone_id: Number(droneId),
+            batteries,
+          }
+        })
+        .filter((d) => Number.isFinite(d.drone_id))
+
       const payload = {
         flight_order_id: Number(formData.ordenN),
         log_number: formData.folio.trim(),
         flight_date: formData.fecha,
-        operator_id: operatorId,
-        drone_ids: droneIds.length ? droneIds : undefined,
+        drones: dronesPayload.length ? dronesPayload : undefined,
         copilot_name: formData.copiloto,
         location: formData.lugar,
-        rpa1_model: formData.rpa1Modelo,
-        rpa1_registration: formData.rpa1Registro,
-        rpa2_model: formData.rpa2Modelo,
-        rpa2_registration: formData.rpa2Registro,
-        battery1_start: baterias[0]?.inicio ? Number(baterias[0].inicio) : undefined,
-        battery1_end: baterias[0]?.termino ? Number(baterias[0].termino) : undefined,
-        battery2_start: baterias[1]?.inicio ? Number(baterias[1].inicio) : undefined,
-        battery2_end: baterias[1]?.termino ? Number(baterias[1].termino) : undefined,
-        battery3_start: baterias[2]?.inicio ? Number(baterias[2].inicio) : undefined,
-        battery3_end: baterias[2]?.termino ? Number(baterias[2].termino) : undefined,
         departure_time_utc: toApiTime(formData.utcSalida),
         arrival_time_utc: toApiTime(formData.utcLlegada),
         departure_time_local: toApiTime(formData.gtmSalida),

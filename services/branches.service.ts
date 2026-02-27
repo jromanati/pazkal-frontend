@@ -38,13 +38,12 @@ export type UpdateBranchPayload = {
 export type BranchDocumentType =
   | "operations_spec"
   | "insurance"
-  | "flight_auth"
-  | "kmz"
-  | "special_auth"
   | "jac_resolution"
-  | "other_1"
-  | "other_2"
-  | "other_3"
+  | "equipment_records"
+  | "flight_auth"
+  | "mandate_auth"
+  | "special_auth"
+  | "aircraft_maint"
 
 export type BranchDocumentItem = {
   id: number
@@ -118,8 +117,8 @@ export class BranchService {
 
   static async deleteBranchDocument(
     branchId: number | string,
-    documentType: BranchDocumentType,
+    documentId: number | string,
   ): Promise<ApiResponse<unknown>> {
-    return apiClient.delete<unknown>(`branches/${branchId}/documents/${documentType}/`)
+    return apiClient.delete<unknown>(`branches/${branchId}/documents/${documentId}/`)
   }
 }

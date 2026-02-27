@@ -38,6 +38,8 @@ export default function EquiposPage() {
     equipo: null,
   })
 
+  const formatDecimalForDisplay = (v: unknown) => String(v ?? '').replace('.', ',')
+
   const normalizeList = (data: DroneListItem[] | PaginatedResponse<DroneListItem>) => {
     if (Array.isArray(data)) return data
     return data?.results ?? []
@@ -145,7 +147,7 @@ export default function EquiposPage() {
 
   return (
     <>
-      <Header icon="flight" title="Equipos (Drones)" onMenuClick={toggle} />
+      <Header icon="drone" title="Equipos (Drones)" onMenuClick={toggle} />
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -272,7 +274,7 @@ export default function EquiposPage() {
                     <p className="text-xs text-gray-500">{equipo.model}</p>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">{equipo.serial_number}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{equipo.max_takeoff_weight_kg} kg</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{formatDecimalForDisplay(equipo.max_takeoff_weight_kg)} kg</td>
                   <td className="px-6 py-4 text-center">
                     <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-gray-300">
                       <span className="material-symbols-outlined text-base text-[#2c528c]">battery_full</span>
@@ -317,7 +319,7 @@ export default function EquiposPage() {
                 {estadoBadge(equipo.is_active ? 'activo' : 'inactivo')}
               </div>
               <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">scale</span> {equipo.max_takeoff_weight_kg} kg</span>
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">scale</span> {formatDecimalForDisplay(equipo.max_takeoff_weight_kg)} kg</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">battery_full</span> {equipo.battery_count} bat.</span>
                 {equipo.has_parachute && (
                   <span className="flex items-center gap-1 text-green-600">

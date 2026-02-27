@@ -174,7 +174,7 @@ export default function NuevoEquipoPage() {
 
   return (
     <>
-      <Header icon="flight" title="Nuevo Equipo" onMenuClick={toggle} />
+      <Header icon="drone" title="Nuevo Equipo" onMenuClick={toggle} />
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full">
         {/* Title bar */}
