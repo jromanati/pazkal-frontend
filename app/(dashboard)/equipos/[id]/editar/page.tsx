@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { BranchService, type Branch } from '@/services/branches.service'
 import { DronesService, type DroneDetail } from '@/services/drones.service'
+import { canAction } from '@/lib/permissions'
 
 interface BateriaForm {
   id: string;
@@ -21,6 +22,13 @@ export default function EditarEquipoPage() {
   const params = useParams()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canUpdate = mounted && canAction('equipos', 'update')
 
   const [equipo, setEquipo] = useState<DroneDetail | null>(null)
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
@@ -177,6 +185,14 @@ export default function EditarEquipoPage() {
   }
 
   const handleSubmit = () => {
+    if (!canUpdate) {
+      toast({
+        title: 'Sin permisos',
+        description: 'No tienes permisos para modificar equipos.',
+        variant: 'destructive',
+      })
+      return
+    }
     ;(async () => {
       if (!droneId) return
       if (!form.sucursalId) {
@@ -260,13 +276,15 @@ export default function EditarEquipoPage() {
           </div>
           <div className="flex gap-2 sm:gap-3">
             <Link href="/equipos" className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors text-center">Cancelar</Link>
-            <button
-              onClick={handleSubmit}
-              disabled={isSaving}
-              className="flex-1 sm:flex-none bg-[#2c528c] hover:bg-blue-800 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
-            >
-              <span className="material-symbols-outlined text-base sm:text-lg">save</span> Guardar
-            </button>
+            {canUpdate && (
+              <button
+                onClick={handleSubmit}
+                disabled={isSaving}
+                className="flex-1 sm:flex-none bg-[#2c528c] hover:bg-blue-800 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md"
+              >
+                <span className="material-symbols-outlined text-base sm:text-lg">save</span> Guardar
+              </button>
+            )}
           </div>
         </div>
 
@@ -282,27 +300,27 @@ export default function EditarEquipoPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Numero de Registro</label>
-                <input name="numeroRegistro" value={form.numeroRegistro} onChange={handleChange} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                <input name="numeroRegistro" value={form.numeroRegistro} onChange={handleChange} disabled={!canUpdate} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Marca</label>
-                <input name="marca" value={form.marca} onChange={handleChange} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                <input name="marca" value={form.marca} onChange={handleChange} disabled={!canUpdate} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Modelo</label>
-                <input name="modelo" value={form.modelo} onChange={handleChange} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                <input name="modelo" value={form.modelo} onChange={handleChange} disabled={!canUpdate} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Numero de Serie</label>
-                <input name="numeroSerie" value={form.numeroSerie} onChange={handleChange} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                <input name="numeroSerie" value={form.numeroSerie} onChange={handleChange} disabled={!canUpdate} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Peso Maximo de Despegue</label>
-                <input name="pesoMaxDespegue" value={form.pesoMaxDespegue} onChange={handleChange} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                <input name="pesoMaxDespegue" value={form.pesoMaxDespegue} onChange={handleChange} disabled={!canUpdate} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Empresa</label>
-                <select name="empresaId" value={form.empresaId} onChange={handleChange} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]">
+                <select name="empresaId" value={form.empresaId} onChange={handleChange} disabled={!canUpdate} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60">
                   <option value="">Seleccionar empresa</option>
                   {companies.map(e => (
                     <option key={e.id} value={String(e.id)}>
@@ -318,7 +336,7 @@ export default function EditarEquipoPage() {
                   name="sucursalId"
                   value={form.sucursalId}
                   onChange={handleChange}
-                  disabled={!form.empresaId}
+                  disabled={!canUpdate || !form.empresaId}
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60"
                 >
                   <option value="">Seleccionar sucursal</option>
@@ -346,8 +364,9 @@ export default function EditarEquipoPage() {
               name="notas"
               value={form.notas}
               onChange={handleChange}
+              disabled={!canUpdate}
               placeholder="Observaciones, mantenimiento, etc."
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60"
             />
           </div>
         </div>
@@ -359,9 +378,11 @@ export default function EditarEquipoPage() {
               <span className="material-symbols-outlined text-lg text-[#2c528c]">battery_full</span>
               Baterias ({baterias.length})
             </h3>
-            <button type="button" onClick={addBateria} className="text-xs font-semibold text-[#2c528c] hover:text-blue-800 flex items-center gap-1 transition-colors">
-              <span className="material-symbols-outlined text-base">add_circle</span> Agregar bateria
-            </button>
+            {canUpdate && (
+              <button type="button" onClick={addBateria} className="text-xs font-semibold text-[#2c528c] hover:text-blue-800 flex items-center gap-1 transition-colors">
+                <span className="material-symbols-outlined text-base">add_circle</span> Agregar bateria
+              </button>
+            )}
           </div>
           <div className="p-5 sm:p-6 space-y-4">
             {baterias.map((bat, idx) => (
@@ -371,15 +392,17 @@ export default function EditarEquipoPage() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Nombre / Identificador</label>
-                  <input value={bat.nombre} onChange={(e) => updateBateria(bat.id, 'nombre', e.target.value)} placeholder="Ej: TB60-001" className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                  <input value={bat.nombre} onChange={(e) => updateBateria(bat.id, 'nombre', e.target.value)} disabled={!canUpdate} placeholder="Ej: TB60-001" className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
                 </div>
                 <div className="w-full sm:w-32">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Ciclos</label>
-                  <input value={bat.ciclos} onChange={(e) => updateBateria(bat.id, 'ciclos', e.target.value)} placeholder="000" maxLength={3} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-center font-mono focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                  <input value={bat.ciclos} onChange={(e) => updateBateria(bat.id, 'ciclos', e.target.value)} disabled={!canUpdate} placeholder="000" maxLength={3} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-center font-mono focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
                 </div>
-                <button type="button" onClick={() => removeBateria(bat.id)} disabled={baterias.length <= 1} className="p-2 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors self-center sm:self-auto">
-                  <span className="material-symbols-outlined text-lg">remove_circle</span>
-                </button>
+                {canUpdate && (
+                  <button type="button" onClick={() => removeBateria(bat.id)} disabled={baterias.length <= 1} className="p-2 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors self-center sm:self-auto">
+                    <span className="material-symbols-outlined text-lg">remove_circle</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -396,9 +419,9 @@ export default function EditarEquipoPage() {
           <div className="p-5 sm:p-6">
             <label className="flex items-center gap-3 cursor-pointer mb-6">
               <div className="relative">
-                <input type="checkbox" name="tieneParacaidas" checked={form.tieneParacaidas} onChange={handleChange} className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer-checked:bg-[#2c528c] transition-colors" />
-                <div className="absolute left-0.5 top-0.5 size-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
+                <input type="checkbox" name="tieneParacaidas" checked={form.tieneParacaidas} onChange={handleChange} disabled={!canUpdate} className="sr-only peer" />
+                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer-checked:bg-[#2c528c] transition-colors peer-disabled:opacity-60" />
+                <div className="absolute left-0.5 top-0.5 size-5 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform peer-disabled:opacity-60" />
               </div>
               <span className="text-sm font-medium text-slate-700 dark:text-gray-300">El equipo tiene paracaidas</span>
             </label>
@@ -407,15 +430,15 @@ export default function EditarEquipoPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Marca</label>
-                  <input name="paracaidasMarca" value={form.paracaidasMarca} onChange={handleChange} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                  <input name="paracaidasMarca" value={form.paracaidasMarca} onChange={handleChange} disabled={!canUpdate} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Modelo</label>
-                  <input name="paracaidasModelo" value={form.paracaidasModelo} onChange={handleChange} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                  <input name="paracaidasModelo" value={form.paracaidasModelo} onChange={handleChange} disabled={!canUpdate} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Peso de Resistencia</label>
-                  <input name="paracaidasPeso" value={form.paracaidasPeso} onChange={handleChange} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" />
+                  <input name="paracaidasPeso" value={form.paracaidasPeso} onChange={handleChange} disabled={!canUpdate} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c] disabled:opacity-60" />
                 </div>
               </div>
             )}

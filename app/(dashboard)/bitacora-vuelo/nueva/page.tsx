@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
 import { FlightLogsService } from '@/services/flights-logs.service'
 import { DronesService, type DroneDetail, type DroneListItem } from '@/services/drones.service'
-import { canAction } from '@/lib/permissions'
+import { canAction, getCurrentRole, getCurrentUserFromStorage } from '@/lib/permissions'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 
 export default function NuevaBitacoraPage() {
@@ -31,6 +31,14 @@ export default function NuevaBitacoraPage() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const currentRole = useMemo(() => (mounted ? getCurrentRole() : null), [mounted])
+  const currentUser = useMemo(() => (mounted ? getCurrentUserFromStorage() : null), [mounted])
+  const isOperator = currentRole === 'operador'
+  const defaultBranchId = useMemo(() => {
+    const b0 = (currentUser as any)?.branches?.[0]
+    return b0?.id ? String(b0.id) : ''
+  }, [currentUser])
 
   const canCreate = mounted && canAction('bitacora_vuelo', 'create')
   
@@ -64,7 +72,10 @@ export default function NuevaBitacoraPage() {
     if (!mounted || !canCreate) return
 
     const load = async () => {
-      const ordersRes = await FlightOrdersService.listOrders({ ordering: '-scheduled_date' })
+      const ordersRes = await FlightOrdersService.listOrders({
+        ordering: '-scheduled_date',
+        branch_id: isOperator && defaultBranchId ? Number(defaultBranchId) : undefined,
+      })
 
       if (ordersRes.success && ordersRes.data) {
         const data: unknown = ordersRes.data
@@ -77,7 +88,7 @@ export default function NuevaBitacoraPage() {
     }
 
     load()
-  }, [mounted, canCreate])
+  }, [mounted, canCreate, isOperator, defaultBranchId])
 
   useEffect(() => {
     const id = Number(formData.ordenN)

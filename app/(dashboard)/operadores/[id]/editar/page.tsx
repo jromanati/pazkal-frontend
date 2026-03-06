@@ -326,6 +326,15 @@ function Calificaciones() {
   const [isUploading, setIsUploading] = useState(false)
   const [docs, setDocs] = useState<OperatorDocument[]>([])
 
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canUpdateDocs = mounted && canAction('operadores', 'update')
+  const canDeleteDocs = mounted && canAction('operadores', 'delete')
+
   const [form, setForm] = useState<{
     document_type: OperatorDocumentType
     expiration_date: string
@@ -372,69 +381,48 @@ function Calificaciones() {
     refresh()
   }, [userId])
 
-  const openDoc = async (doc: OperatorDocument) => {
+  const openDoc = (doc: OperatorDocument) => {
     const url = doc.file_url
     if (!url) return
 
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(url, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      })
-
-      if (!response.ok) {
-        window.open(url, '_blank', 'noopener,noreferrer')
-        return
-      }
-
-      const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
-      window.open(objectUrl, '_blank', 'noopener,noreferrer')
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
-    } catch {
-      window.open(url, '_blank', 'noopener,noreferrer')
-    }
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
-  const downloadDoc = async (doc: OperatorDocument) => {
+  const downloadDoc = (doc: OperatorDocument) => {
+    console.log(doc)
     const url = doc.file_url
     if (!url) return
 
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(url, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      })
-
-      if (!response.ok) {
-        window.open(url, '_blank', 'noopener,noreferrer')
-        return
-      }
-
-      const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = objectUrl
-      a.download = doc.original_filename || `${doc.document_type}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(objectUrl)
-    } catch {
-      window.open(url, '_blank', 'noopener,noreferrer')
-    }
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.download = doc.original_filename || `${doc.document_type}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   const handleUpload = async () => {
+    if (!canUpdateDocs) {
+      toast({
+        title: 'Sin permisos',
+        description: 'No tienes permisos para subir documentos.',
+        variant: 'destructive',
+      })
+      return
+    }
     if (!userId) return
     if (!form.file) {
       toast({
-        title: 'Faltan datos',
-        description: 'Debe seleccionar un archivo.',
+        title: 'Falta archivo',
+        description: 'Seleccione un archivo.',
         variant: 'destructive',
       })
       return
@@ -470,6 +458,14 @@ function Calificaciones() {
   }
 
   const handleDelete = async (documentType: OperatorDocumentType) => {
+    if (!canDeleteDocs) {
+      toast({
+        title: 'Sin permisos',
+        description: 'No tienes permisos para eliminar documentos.',
+        variant: 'destructive',
+      })
+      return
+    }
     if (!userId) return
     const ok = window.confirm('¿Eliminar este documento?')
     if (!ok) return
@@ -511,71 +507,73 @@ function Calificaciones() {
         </div>
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-            <div className="lg:col-span-2">
-              <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-gray-100">Cargar documento</h4>
-                  <p className="text-xs text-gray-400 mt-1">PDF, JPG o PNG. Máx. 10MB.</p>
-                </div>
-                <div className="p-4 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Tipo
-                    </label>
-                    <select
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                      value={form.document_type}
-                      onChange={(e) => setForm(prev => ({ ...prev, document_type: e.target.value as OperatorDocumentType }))}
+            {canUpdateDocs && (
+              <div className="lg:col-span-2">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-gray-100">Cargar documento</h4>
+                    <p className="text-xs text-gray-400 mt-1">PDF, JPG o PNG. Máx. 10MB.</p>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                        Tipo
+                      </label>
+                      <select
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
+                        value={form.document_type}
+                        onChange={(e) => setForm(prev => ({ ...prev, document_type: e.target.value as OperatorDocumentType }))}
+                      >
+                        {docTypeOptions.map(o => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                        Archivo
+                      </label>
+                      <input
+                        type="file"
+                        accept="application/pdf,image/png,image/jpeg"
+                        onChange={(e) => setForm(prev => ({ ...prev, file: e.target.files?.[0] ?? null }))}
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
+                      />
+                      {form.file && (
+                        <p className="text-[10px] text-gray-400 mt-1 truncate">
+                          {form.file.name} ({Math.round(form.file.size / 1024)} KB)
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                        Fecha de caducidad (opcional)
+                      </label>
+                      <input
+                        type="date"
+                        value={form.expiration_date}
+                        onChange={(e) => setForm(prev => ({ ...prev, expiration_date: e.target.value }))}
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleUpload}
+                      disabled={isUploading}
+                      className="w-full bg-[#2c528c] hover:bg-blue-800 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
                     >
-                      {docTypeOptions.map(o => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      <span className="material-symbols-outlined text-base">upload</span>
+                      Subir
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Archivo
-                    </label>
-                    <input
-                      type="file"
-                      accept="application/pdf,image/png,image/jpeg"
-                      onChange={(e) => setForm(prev => ({ ...prev, file: e.target.files?.[0] ?? null }))}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                    />
-                    {form.file && (
-                      <p className="text-[10px] text-gray-400 mt-1 truncate">
-                        {form.file.name} ({Math.round(form.file.size / 1024)} KB)
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Fecha de caducidad (opcional)
-                    </label>
-                    <input
-                      type="date"
-                      value={form.expiration_date}
-                      onChange={(e) => setForm(prev => ({ ...prev, expiration_date: e.target.value }))}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-[#2c528c] focus:border-[#2c528c]"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    className="w-full bg-[#2c528c] hover:bg-blue-800 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-base">upload</span>
-                    Subir
-                  </button>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="lg:col-span-3">
               <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -624,13 +622,15 @@ function Calificaciones() {
                           >
                             Descargar
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(doc.document_type)}
-                            className="px-3 py-2 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          >
-                            Eliminar
-                          </button>
+                          {canDeleteDocs && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(doc.document_type)}
+                              className="px-3 py-2 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1067,7 +1067,7 @@ export default function EditarOperadorPage() {
         </div>
 
         {/* Content */}
-        <fieldset disabled={!canUpdate} className="contents">
+        <fieldset disabled={!canUpdate && activeTab !== 'calificaciones'} className="contents">
           {activeTab === 'datos-personales' && (
             <DatosPersonales
               canUpdate={canUpdate}
@@ -1668,7 +1668,7 @@ function DatosProfesionales({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-4 pb-12">
+      {/* <div className="flex items-center justify-end gap-4 pb-12">
         <Link
           href="/operadores"
           className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -1684,7 +1684,7 @@ function DatosProfesionales({
             Guardar Cambios
           </button>
         )}
-      </div>
+      </div> */}
     </form>
   )
 }

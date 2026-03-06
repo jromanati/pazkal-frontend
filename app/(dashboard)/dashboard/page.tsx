@@ -1,31 +1,181 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
-import { 
-  empresasMock, 
-  mesesMock, 
-  operadoresActivosMock,
-  getDashboardStatsByFilter
-} from '@/lib/mock-data'
+import { useToast } from '@/hooks/use-toast'
+import { DashboardService } from '@/services/dashboard.service'
 
 export default function DashboardPage() {
   const { toggle } = useSidebar()
-  const [selectedEmpresa, setSelectedEmpresa] = useState<string>('')
-  const [selectedMes, setSelectedMes] = useState<string>('')
+  const { toast } = useToast()
 
-  // Stats dinámicas basadas en los filtros
-  const stats = useMemo(() => {
-    return getDashboardStatsByFilter(
-      selectedEmpresa || undefined, 
-      selectedMes || undefined
-    )
-  }, [selectedEmpresa, selectedMes])
+  const now = new Date()
+  const [mounted, setMounted] = useState(false)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear())
 
-  // Obtener nombre de empresa seleccionada para mostrar
-  const empresaSeleccionada = empresasMock.find(e => e.id === selectedEmpresa)
-  const mesSeleccionado = mesesMock.find(m => m.value === selectedMes)
+  const [companies, setCompanies] = useState<Array<{ id: number; name: string; code: string }>>([])
+  const [stats, setStats] = useState<{
+    total_hours_month: string
+    total_hours_previous_month: string
+    hours_change_percent: string
+    total_orders_month: number
+    total_orders_previous_month: number
+    orders_change_percent: string
+  } | null>(null)
+  const [activity, setActivity] = useState<{
+    year: number
+    total_minutes_year: number
+    year_change_percent: string
+    monthly_data: Array<{ month: number; month_name: string; minutes: number }>
+  } | null>(null)
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const companyIdParam = selectedCompanyId ? Number(selectedCompanyId) : undefined
+
+  const yearOptions = useMemo(() => {
+    const y = now.getFullYear()
+    return [y - 2, y - 1, y, y + 1]
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    ;(async () => {
+      const res = await DashboardService.listCompanies()
+      if (!res.success || !res.data) {
+        toast({
+          title: 'No se pudieron cargar las empresas',
+          description: res.error || 'Error al obtener empresas del dashboard.',
+          variant: 'destructive',
+        })
+        return
+      }
+      setCompanies(res.data.companies || [])
+    })()
+  }, [mounted])
+
+  useEffect(() => {
+    if (!mounted) return
+
+    setIsLoading(true)
+    ;(async () => {
+      try {
+        const [statsRes, activityRes] = await Promise.all([
+          DashboardService.getStats({ year: selectedYear, company_id: companyIdParam }),
+          DashboardService.getCompaniesActivity({ year: selectedYear, company_id: companyIdParam }),
+        ])
+
+        if (!statsRes.success || !statsRes.data) {
+          toast({
+            title: 'No se pudieron cargar las estadísticas',
+            description: statsRes.error || 'Error al obtener estadísticas.',
+            variant: 'destructive',
+          })
+          setStats(null)
+        } else {
+          setStats({
+            total_hours_month: statsRes.data.total_hours_month,
+            total_hours_previous_month: statsRes.data.total_hours_previous_month,
+            hours_change_percent: statsRes.data.hours_change_percent,
+            total_orders_month: statsRes.data.total_orders_month,
+            total_orders_previous_month: statsRes.data.total_orders_previous_month,
+            orders_change_percent: statsRes.data.orders_change_percent,
+          })
+        }
+
+        if (!activityRes.success || !activityRes.data) {
+          toast({
+            title: 'No se pudo cargar la actividad mensual',
+            description: activityRes.error || 'Error al obtener actividad.',
+            variant: 'destructive',
+          })
+          setActivity(null)
+        } else {
+          setActivity({
+            year: activityRes.data.year,
+            total_minutes_year: activityRes.data.total_minutes_year,
+            year_change_percent: activityRes.data.year_change_percent,
+            monthly_data: activityRes.data.monthly_data || [],
+          })
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    })()
+  }, [mounted, selectedYear, selectedCompanyId])
+
+  const selectedCompany = companies.find(c => String(c.id) === selectedCompanyId)
+
+  const monthlyMinutes = useMemo(() => {
+    const base = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, minutes: 0, month_name: '' }))
+    for (const item of activity?.monthly_data || []) {
+      if (!item?.month || item.month < 1 || item.month > 12) continue
+      base[item.month - 1] = { month: item.month, minutes: Number(item.minutes || 0), month_name: item.month_name || '' }
+    }
+    return base
+  }, [activity])
+
+  const chart = useMemo(() => {
+    const width = 500
+    const height = 150
+    const bottom = 140
+    const top = 20
+    const maxY = bottom - top
+    const maxMinutes = Math.max(1, ...monthlyMinutes.map(m => m.minutes))
+    const stepX = width / 11
+
+    const points = monthlyMinutes.map((m, idx) => {
+      const x = idx * stepX
+      const y = bottom - (m.minutes / maxMinutes) * maxY
+      return { x, y }
+    })
+
+    const line = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+    const area = `${line} L${width},${bottom} L0,${bottom} Z`
+    return { line, area }
+  }, [monthlyMinutes])
+
+  const parsePercent = (raw: string | undefined) => {
+    const n = Number(String(raw ?? '').replace('%', '').trim())
+    return Number.isFinite(n) ? n : 0
+  }
+
+  const handleExport = async () => {
+    if (!selectedYear) return
+    setIsExporting(true)
+    try {
+      const res = await DashboardService.exportOperations({
+        year: selectedYear,
+        company_id: companyIdParam,
+      })
+      if (!res.success) {
+        toast({
+          title: 'No se pudo exportar',
+          description: res.error || 'Error al generar Excel.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const objectUrl = URL.createObjectURL(res.blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = res.filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <>
@@ -48,56 +198,59 @@ export default function DashboardPage() {
               <select 
                 className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-xs sm:text-sm rounded-lg focus:ring-[#2c528c] focus:border-[#2c528c] text-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
                 id="empresa"
-                value={selectedEmpresa}
-                onChange={(e) => setSelectedEmpresa(e.target.value)}
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
               >
                 <option value="">Todas las Empresas</option>
-                {empresasMock.map((empresa) => (
-                  <option key={empresa.id} value={empresa.id}>{empresa.razonSocial}</option>
+                {companies.map((empresa) => (
+                  <option key={empresa.id} value={String(empresa.id)}>{empresa.name}</option>
                 ))}
               </select>
             </div>
             <div className="flex-1">
-              <label className="sr-only" htmlFor="mes">Seleccionar Mes</label>
+              <label className="sr-only" htmlFor="anio">Seleccionar Año</label>
               <select 
                 className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-xs sm:text-sm rounded-lg focus:ring-[#2c528c] focus:border-[#2c528c] text-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
-                id="mes"
-                value={selectedMes}
-                onChange={(e) => setSelectedMes(e.target.value)}
+                id="anio"
+                value={String(selectedYear)}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
               >
-                <option value="">Todos los Meses</option>
-                {mesesMock.map((mes) => (
-                  <option key={mes.value} value={mes.value}>{mes.label}</option>
+                {yearOptions.map((y) => (
+                  <option key={y} value={String(y)}>{y}</option>
                 ))}
               </select>
             </div>
-            <button className="bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm w-full sm:w-auto">
-              <span className="material-symbols-outlined text-base sm:text-lg">description</span>
-              <span className="sm:inline">Descargar Reporte</span>
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              className="bg-[#2c528c] hover:bg-blue-800 disabled:opacity-60 text-white text-xs sm:text-sm font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm w-full sm:w-auto"
+            >
+              <span className="material-symbols-outlined text-base sm:text-lg">download</span>
+              <span className="sm:inline">Exportar Excel</span>
             </button>
           </div>
         </div>
 
         {/* Active filters indicator */}
-        {(selectedEmpresa || selectedMes) && (
+        {(selectedCompanyId || selectedYear !== now.getFullYear()) && (
           <div className="mb-4 lg:mb-6 flex items-center gap-2 flex-wrap">
             <span className="text-[10px] sm:text-xs text-gray-500 font-medium">Filtros activos:</span>
-            {empresaSeleccionada && (
+            {selectedCompany && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-[#2c528c]/10 text-[#2c528c] text-[10px] sm:text-xs font-medium rounded-full">
-                <span className="truncate max-w-[100px] sm:max-w-none">{empresaSeleccionada.nombre}</span>
+                <span className="truncate max-w-[100px] sm:max-w-none">{selectedCompany.name}</span>
                 <button 
-                  onClick={() => setSelectedEmpresa('')}
+                  onClick={() => setSelectedCompanyId('')}
                   className="hover:bg-[#2c528c]/20 rounded-full p-0.5"
                 >
                   <span className="material-symbols-outlined text-xs sm:text-sm">close</span>
                 </button>
               </span>
             )}
-            {mesSeleccionado && (
+            {selectedYear !== now.getFullYear() && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-[#2c528c]/10 text-[#2c528c] text-[10px] sm:text-xs font-medium rounded-full">
-                {mesSeleccionado.label}
+                {selectedYear}
                 <button 
-                  onClick={() => setSelectedMes('')}
+                  onClick={() => setSelectedYear(now.getFullYear())}
                   className="hover:bg-[#2c528c]/20 rounded-full p-0.5"
                 >
                   <span className="material-symbols-outlined text-xs sm:text-sm">close</span>
@@ -105,7 +258,7 @@ export default function DashboardPage() {
               </span>
             )}
             <button 
-              onClick={() => { setSelectedEmpresa(''); setSelectedMes(''); }}
+              onClick={() => { setSelectedCompanyId(''); setSelectedYear(now.getFullYear()); }}
               className="text-[10px] sm:text-xs text-gray-500 hover:text-red-500 font-medium underline"
             >
               Limpiar todo
@@ -114,7 +267,7 @@ export default function DashboardPage() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
           {/* Horas totales del mes */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow group">
             <div className="flex justify-between items-start mb-3 sm:mb-4">
@@ -125,50 +278,65 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-end gap-2 sm:gap-3 flex-wrap">
               <p className="text-slate-900 dark:text-white text-2xl sm:text-4xl font-bold tracking-tight">
-                {stats.horasTotalesMes.toLocaleString()}
+                {stats ? Number(stats.total_hours_month).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '--'}
               </p>
-              <span className={`flex items-center text-xs sm:text-sm font-bold mb-0.5 sm:mb-1 ${stats.porcentajeCambioHoras >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              <span className={`flex items-center text-xs sm:text-sm font-bold mb-0.5 sm:mb-1 ${parsePercent(stats?.hours_change_percent) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                 <span className="material-symbols-outlined text-xs">
-                  {stats.porcentajeCambioHoras >= 0 ? 'arrow_upward' : 'arrow_downward'}
+                  {parsePercent(stats?.hours_change_percent) >= 0 ? 'arrow_upward' : 'arrow_downward'}
                 </span> 
-                {Math.abs(stats.porcentajeCambioHoras)}%
+                {Math.abs(parsePercent(stats?.hours_change_percent)).toLocaleString()}%
               </span>
             </div>
           </div>
 
-          {/* Horas prácticas */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+          {/* Horas totales mes anterior */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow group">
             <div className="flex justify-between items-start mb-3 sm:mb-4">
               <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
-                Horas totales prácticas del mes
+                Horas totales mes anterior
               </p>
-              <span className="material-symbols-outlined text-[#2c528c] bg-[#2c528c]/10 p-1.5 sm:p-2 rounded-lg text-lg sm:text-2xl">flight</span>
+              <span className="material-symbols-outlined text-[#2c528c] bg-[#2c528c]/10 p-1.5 sm:p-2 rounded-lg text-lg sm:text-2xl">history</span>
             </div>
             <div className="flex items-end gap-2 sm:gap-3 flex-wrap">
               <p className="text-slate-900 dark:text-white text-2xl sm:text-4xl font-bold tracking-tight">
-                {stats.horasPracticasMes}
+                {stats ? Number(stats.total_hours_previous_month).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '--'}
               </p>
-              <span className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${stats.porcentajeCambioPracticas >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {stats.porcentajeCambioPracticas >= 0 ? '+' : ''}{stats.porcentajeCambioPracticas}% vs prev
-              </span>
             </div>
           </div>
 
-          {/* Cantidad de vuelos */}
+          {/* Cantidad de órdenes completadas del mes */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
             <div className="flex justify-between items-start mb-3 sm:mb-4">
               <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
-                Cantidad de vuelos en el mes
+                Órdenes completadas del mes
               </p>
               <span className="material-symbols-outlined text-[#2c528c] bg-[#2c528c]/10 p-1.5 sm:p-2 rounded-lg text-lg sm:text-2xl">airplane_ticket</span>
             </div>
             <div className="flex items-end gap-2 sm:gap-3 flex-wrap">
               <p className="text-slate-900 dark:text-white text-2xl sm:text-4xl font-bold tracking-tight">
-                {stats.cantidadVuelosMes}
+                {stats ? Number(stats.total_orders_month).toLocaleString() : '--'}
               </p>
-              <span className="flex items-center text-[#2c528c] text-xs sm:text-sm font-bold mb-0.5 sm:mb-1">
-                <span className="material-symbols-outlined text-xs">trending_up</span> Estable
+              <span className={`flex items-center text-xs sm:text-sm font-bold mb-0.5 sm:mb-1 ${parsePercent(stats?.orders_change_percent) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                <span className="material-symbols-outlined text-xs">
+                  {parsePercent(stats?.orders_change_percent) >= 0 ? 'arrow_upward' : 'arrow_downward'}
+                </span>
+                {Math.abs(parsePercent(stats?.orders_change_percent)).toLocaleString()}%
               </span>
+            </div>
+          </div>
+
+          {/* Órdenes completadas mes anterior */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
+            <div className="flex justify-between items-start mb-3 sm:mb-4">
+              <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                Órdenes completadas mes anterior
+              </p>
+              <span className="material-symbols-outlined text-[#2c528c] bg-[#2c528c]/10 p-1.5 sm:p-2 rounded-lg text-lg sm:text-2xl">history</span>
+            </div>
+            <div className="flex items-end gap-2 sm:gap-3 flex-wrap">
+              <p className="text-slate-900 dark:text-white text-2xl sm:text-4xl font-bold tracking-tight">
+                {stats ? Number(stats.total_orders_previous_month).toLocaleString() : '--'}
+              </p>
             </div>
           </div>
         </div>
@@ -179,23 +347,21 @@ export default function DashboardPage() {
             <div>
               <p className="text-base sm:text-lg font-bold text-slate-800 dark:text-white leading-none">Actividad de Vuelo Mensual</p>
               <p className="text-xs sm:text-sm text-gray-400 mt-1 sm:mt-2 italic">
-                {empresaSeleccionada 
-                  ? `Histórico de ${empresaSeleccionada.nombre}` 
-                  : 'Histórico consolidado del año en curso'}
+                {selectedCompany ? `Histórico de ${selectedCompany.name}` : 'Histórico consolidado'}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-[#2c528c]"></span>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-300">Vuelos 2024</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-300">Minutos {activity?.year ?? selectedYear}</span>
             </div>
           </div>
           <div className="flex flex-col gap-4 sm:gap-6">
             <div className="flex items-baseline gap-2 flex-wrap">
               <p className="text-[#101419] dark:text-white tracking-tight text-2xl sm:text-[40px] font-black leading-tight">
-                {stats.vuelosTotalesAnio.toLocaleString()}
+                {activity ? Number(activity.total_minutes_year).toLocaleString() : '--'}
               </p>
-              <p className={`text-xs sm:text-base font-bold ${stats.porcentajeCambioAnual >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {stats.porcentajeCambioAnual >= 0 ? '+' : ''}{stats.porcentajeCambioAnual}% vs año anterior
+              <p className={`text-xs sm:text-base font-bold ${parsePercent(activity?.year_change_percent) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {parsePercent(activity?.year_change_percent) >= 0 ? '+' : ''}{parsePercent(activity?.year_change_percent).toLocaleString()}% vs año anterior
               </p>
             </div>
             <div className="relative w-full h-[180px] sm:h-[220px] lg:h-[280px] py-2 sm:py-4">
@@ -210,74 +376,28 @@ export default function DashboardPage() {
                     <stop offset="100%" stopColor="#2c528c" stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                <path d="M0,120 C50,110 100,130 150,90 C200,50 250,70 300,40 C350,10 400,60 450,30 C480,10 500,20 500,20 L500,140 L0,140 Z" fill="url(#chartGradient)" />
-                <path d="M0,120 C50,110 100,130 150,90 C200,50 250,70 300,40 C350,10 400,60 450,30 C480,10 500,20 500,20" fill="none" stroke="#2c528c" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
-                <circle cx="150" cy="90" fill="#2c528c" r="4" />
-                <circle cx="300" cy="40" fill="#2c528c" r="4" />
-                <circle cx="450" cy="30" fill="#2c528c" r="4" />
+                <path d={chart.area} fill="url(#chartGradient)" />
+                <path d={chart.line} fill="none" stroke="#2c528c" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
               </svg>
             </div>
             <div className="flex justify-between px-1 sm:px-2 overflow-x-auto">
-              {mesesMock.slice(0, 7).map((mes) => (
+              {monthlyMinutes.map((m) => (
                 <p 
-                  key={mes.value}
+                  key={m.month}
                   className={`text-[9px] sm:text-xs font-bold tracking-widest uppercase flex-shrink-0 ${
-                    selectedMes === mes.value 
-                      ? 'text-[#2c528c] border-b-2 border-[#2c528c]' 
-                      : 'text-gray-400'
+                    'text-gray-400'
                   }`}
                 >
-                  {mes.label.slice(0, 3)}
+                  {(m.month_name || '').slice(0, 3) || String(m.month).padStart(2, '0')}
                 </p>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Bottom grid */}
-        <div className="mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-          {/* Últimos operadores activos */}
-          <div className="p-4 sm:p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
-            <h3 className="font-bold text-slate-800 dark:text-white mb-3 sm:mb-4 text-sm sm:text-base">Últimos Operadores Activos</h3>
-            <div className="space-y-2 sm:space-y-4">
-              {operadoresActivosMock.map((operador) => (
-                <div key={operador.id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-[#f6f7f8] dark:bg-gray-800/50">
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <span className="material-symbols-outlined text-[#2c528c] text-lg sm:text-2xl flex-shrink-0">account_circle</span>
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-semibold truncate">{operador.nombre}</p>
-                      <p className="text-[9px] sm:text-[10px] text-gray-500 uppercase">ID: {operador.codigo}</p>
-                    </div>
-                  </div>
-                  <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-bold rounded uppercase flex-shrink-0 ${
-                    operador.estado === 'operando' 
-                      ? 'bg-green-100 text-green-700' 
-                      : operador.estado === 'mantenimiento'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {operador.estado === 'operando' ? 'Operando' : operador.estado === 'mantenimiento' ? 'Mant.' : 'Inactivo'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Asistente de reportes */}
-          <div className="p-4 sm:p-6 bg-[#2c528c] rounded-xl text-white shadow-lg flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-base sm:text-lg mb-2">Asistente de Reportes</h3>
-              <p className="bg-white/10 p-2.5 sm:p-3 rounded-lg text-xs sm:text-sm mb-3 sm:mb-4 leading-relaxed">
-                Genere informes detallados sobre el consumo de combustible y horas de vuelo con un solo clic.
-              </p>
-            </div>
-            <button className="w-full bg-white text-[#2c528c] font-bold py-2.5 sm:py-3 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 shadow-xl text-sm sm:text-base">
-              <span className="material-symbols-outlined text-lg sm:text-2xl">description</span>
-              <span className="hidden sm:inline">Descargar Reporte Mensual (PDF)</span>
-              <span className="sm:hidden">Descargar PDF</span>
-            </button>
-          </div>
-        </div>
+        {isLoading && (
+          <div className="mt-4 text-xs text-gray-400">Actualizando datos...</div>
+        )}
       </div>
     </>
   )

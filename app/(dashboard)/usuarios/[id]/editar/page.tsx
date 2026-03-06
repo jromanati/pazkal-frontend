@@ -39,6 +39,26 @@ function branchToSucursal(branch: Branch): Sucursal {
   }
 }
 
+function formatBackendDetails(details: unknown): string {
+  const lines: string[] = []
+
+  const walk = (value: unknown, path: string[]) => {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      const msg = value.map(String).join(' ')
+      if (msg) lines.push(`${path.join('.')}: ${msg}`)
+      return
+    }
+
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      walk(v, [...path, k])
+    }
+  }
+
+  walk(details, [])
+  return lines.join('\n')
+}
+
 function AsignarEmpresasSucursalesModal({
   open,
   onClose,
@@ -598,11 +618,7 @@ export default function EditarUsuarioPage() {
 
     const response = await UsersService.updateUser(userId, payload)
     if (!response.success) {
-      const detailsText = response.details
-        ? Object.entries(response.details)
-          .map(([k, v]) => `${k}: ${v.join(' ')}`)
-          .join('\n')
-        : ''
+      const detailsText = formatBackendDetails((response as any).details ?? (response as any).data?.details)
       toast({
         title: 'Error al guardar',
         description: detailsText || response.error || 'No se pudieron guardar los cambios.',
@@ -845,7 +861,6 @@ export default function EditarUsuarioPage() {
                     type="date"
                     value={formData.profile.fecha_nacimiento}
                     onChange={handleChange}
-                    required
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
@@ -861,11 +876,10 @@ export default function EditarUsuarioPage() {
                     type="text"
                     value={formData.profile.telefono}
                     onChange={handleChange}
-                    required
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-                <div>
+                {/* <div>
                   <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Número credencial
                   </label>
@@ -878,7 +892,7 @@ export default function EditarUsuarioPage() {
                     required
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
-                </div>
+                </div> */}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">

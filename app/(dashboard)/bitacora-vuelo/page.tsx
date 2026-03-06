@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
@@ -11,7 +11,7 @@ import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.
 import { UsersService, type User } from '@/services/users.service'
 import { DronesService } from '@/services/drones.service'
 import { BranchService } from '@/services/branches.service'
-import { canAction, canView } from '@/lib/permissions'
+import { canAction, canView, getCurrentRole, getCurrentUserFromStorage } from '@/lib/permissions'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { buildFlightLogPdfHtml, downloadPdfFromHtml, openPrintPdf, type PdfDroneSection } from '@/lib/pdf'
 
@@ -24,6 +24,18 @@ export default function BitacoraVueloPage() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const currentRole = useMemo(() => (mounted ? getCurrentRole() : null), [mounted])
+  const currentUser = useMemo(() => (mounted ? getCurrentUserFromStorage() : null), [mounted])
+  const isOperator = currentRole === 'operador'
+  const defaultOperatorId = useMemo(() => {
+    const id = (currentUser as any)?.id
+    return id ? String(id) : ''
+  }, [currentUser])
+  const defaultBranchId = useMemo(() => {
+    const b0 = (currentUser as any)?.branches?.[0]
+    return b0?.id ? String(b0.id) : ''
+  }, [currentUser])
 
   const canRead = mounted && canView('bitacora_vuelo')
   const canCreate = mounted && canAction('bitacora_vuelo', 'create')
@@ -164,11 +176,18 @@ export default function BitacoraVueloPage() {
   useEffect(() => {
     if (!mounted || !canRead) return
 
+    if (isOperator) {
+      setFilters((p) => ({
+        ...p,
+        operator_id: p.operator_id || defaultOperatorId,
+      }))
+    }
+
     const loadFiltersData = async () => {
-      const [ordersRes, usersRes] = await Promise.all([
-        FlightOrdersService.listOrders({ ordering: '-scheduled_date' }),
-        UsersService.getUsers({ page: 1, page_size: 1000 }),
-      ])
+      const ordersRes = await FlightOrdersService.listOrders({
+        ordering: '-scheduled_date',
+        branch_id: isOperator && defaultBranchId ? Number(defaultBranchId) : undefined,
+      })
 
       if (ordersRes.success && ordersRes.data) {
         const data: unknown = ordersRes.data
@@ -179,13 +198,18 @@ export default function BitacoraVueloPage() {
         }
       }
 
-      if (usersRes.success && usersRes.data?.results) {
-        setOperators(usersRes.data.results)
+      if (!isOperator) {
+        const usersRes = await UsersService.getUsers({ page: 1, page_size: 1000 })
+        if (usersRes.success && usersRes.data?.results) {
+          setOperators(usersRes.data.results)
+        }
+      } else {
+        setOperators([])
       }
     }
 
     loadFiltersData()
-  }, [mounted, canRead])
+  }, [mounted, canRead, isOperator, defaultOperatorId, defaultBranchId])
 
   useEffect(() => {
     if (!mounted || !canRead) return
@@ -319,6 +343,7 @@ export default function BitacoraVueloPage() {
                 placeholder="Todos"
                 searchPlaceholder="Buscar operador..."
                 triggerClassName="text-xs"
+                disabled={isOperator}
               />
             </div>
             <div>

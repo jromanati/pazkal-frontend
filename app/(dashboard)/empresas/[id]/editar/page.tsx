@@ -14,7 +14,7 @@ import {
   type BranchDocumentItem,
   type BranchDocumentType,
 } from '@/services/branches.service'
-import { canAction, canView } from '@/lib/permissions'
+import { canAction, canView, getCurrentRole } from '@/lib/permissions'
 import { type Empresa } from '@/lib/mock-data'
 type Tab = 'datos' | 'documentos' | 'sucursales'
 
@@ -27,6 +27,8 @@ export default function EditarEmpresaPage() {
   const [activeTab, setActiveTab] = useState<Tab>('datos')
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const canRead = mounted && canView('empresas')
+  const userRole = mounted && getCurrentRole()
+
   const canUpdate = mounted && canAction('empresas', 'update')
   const [formData, setFormData] = useState({
     rut: '',
@@ -313,89 +315,93 @@ export default function EditarEmpresaPage() {
                 </div>
 
                 {/* Gerente de Operaciones */}
-                <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg text-[#2c528c]">person</span>
-                    Gerente de Operaciones
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-1">
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="nombreGerente">
-                        Nombre del gerente
-                      </label>
-                      <input 
-                        className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
-                        id="nombreGerente" 
-                        value={formData.nombreGerente}
-                        onChange={handleChange}
-                        placeholder="Nombre completo" 
-                        type="text"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="correoGerente">
-                        Correo gerente
-                      </label>
-                      <input 
-                        className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
-                        id="correoGerente" 
-                        value={formData.correoGerente}
-                        onChange={handleChange}
-                        placeholder="correo@ejemplo.com" 
-                        type="email"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="telefonoGerente">
-                        Teléfono gerente
-                      </label>
-                      <input 
-                        className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
-                        id="telefonoGerente" 
-                        value={formData.telefonoGerente}
-                        onChange={handleChange}
-                        placeholder="+56 9 ..." 
-                        type="tel"
-                      />
+                {userRole !== "operador" && (
+                  <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg text-[#2c528c]">person</span>
+                      Gerente de Operaciones
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-1">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="nombreGerente">
+                          Nombre del gerente
+                        </label>
+                        <input 
+                          className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                          id="nombreGerente" 
+                          value={formData.nombreGerente}
+                          onChange={handleChange}
+                          placeholder="Nombre completo" 
+                          type="text"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="correoGerente">
+                          Correo gerente
+                        </label>
+                        <input 
+                          className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                          id="correoGerente" 
+                          value={formData.correoGerente}
+                          onChange={handleChange}
+                          placeholder="correo@ejemplo.com" 
+                          type="email"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="telefonoGerente">
+                          Teléfono gerente
+                        </label>
+                        <input 
+                          className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                          id="telefonoGerente" 
+                          value={formData.telefonoGerente}
+                          onChange={handleChange}
+                          placeholder="+56 9 ..." 
+                          type="tel"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Contacto DGAC */}
-                <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg text-[#2c528c]">verified_user</span>
-                    Contacto DGAC
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="inspectorDgac">
-                        Inspector DGAC
-                      </label>
-                      <input 
-                        className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
-                        id="inspectorDgac" 
-                        value={formData.inspectorDgac}
-                        onChange={handleChange}
-                        placeholder="Nombre del inspector asignado" 
-                        type="text"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="correoDgac">
-                        Correo DGAC
-                      </label>
-                      <input 
-                        className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
-                        id="correoDgac" 
-                        value={formData.correoDgac}
-                        onChange={handleChange}
-                        placeholder="inspector@dgac.gob.cl" 
-                        type="email"
-                      />
+                {userRole !== "operador" && (
+                  <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg text-[#2c528c]">verified_user</span>
+                      Contacto DGAC
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="inspectorDgac">
+                          Inspector DGAC
+                        </label>
+                        <input 
+                          className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                          id="inspectorDgac" 
+                          value={formData.inspectorDgac}
+                          onChange={handleChange}
+                          placeholder="Nombre del inspector asignado" 
+                          type="text"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2" htmlFor="correoDgac">
+                          Correo DGAC
+                        </label>
+                        <input 
+                          className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:ring-[#2c528c] focus:border-[#2c528c]" 
+                          id="correoDgac" 
+                          value={formData.correoDgac}
+                          onChange={handleChange}
+                          placeholder="inspector@dgac.gob.cl" 
+                          type="email"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
                 </fieldset>
               </form>
             </div>
@@ -637,9 +643,11 @@ function DocumentosEmpresa({
                 >
                   <span className={`material-symbols-outlined mb-2 ${uploaded ? 'text-green-500' : 'text-gray-400'}`}>{docType.icon}</span>
                   <p className="text-[11px] text-gray-500 mb-2">{docType.desc}</p>
-                  <button type="button" className="text-xs font-bold text-[#2c528c] hover:underline" disabled={!canUpdate}>
-                    {uploaded ? 'Reemplazar archivo' : 'Subir archivo'}
-                  </button>
+                  {canUpdate && (
+                    <button type="button" className="text-xs font-bold text-[#2c528c] hover:underline" disabled={!canUpdate}>
+                      {uploaded ? 'Reemplazar archivo' : 'Subir archivo'}
+                    </button>
+                  )}
                 </label>
 
                 {canUpdate && (

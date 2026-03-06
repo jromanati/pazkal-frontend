@@ -151,12 +151,6 @@ export default function PerfilPage() {
               Actualiza tus datos personales. No puedes modificar tu grupo ni tus empresas.
             </p>
           </div>
-          <Link
-            href="/dashboard"
-            className="px-4 py-2 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            Volver
-          </Link>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -212,8 +206,11 @@ export default function PerfilPage() {
                     onChange={handleChange}
                     required
                     disabled
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                    className="mb-2 w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
+                  <p className="text-xs text-gray-400">
+                    El email no puede modificarse. Contacte al administrador si necesita cambiarlo.
+                  </p>
                 </div>
 
                 <div>

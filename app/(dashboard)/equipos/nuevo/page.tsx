@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { BranchService, type Branch } from '@/services/branches.service'
 import { DronesService } from '@/services/drones.service'
+import { canAction } from '@/lib/permissions'
 
 interface BateriaForm {
   id: string;
@@ -20,6 +21,13 @@ export default function NuevoEquipoPage() {
   const router = useRouter()
   const { toggle } = useSidebar()
   const { toast } = useToast()
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canCreate = mounted && canAction('equipos', 'create')
 
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
@@ -89,6 +97,18 @@ export default function NuevoEquipoPage() {
     loadCompanies()
   }, [])
 
+  if (mounted && !canCreate) {
+    return (
+      <>
+        <Header icon="drone" title="Nuevo Equipo" onMenuClick={toggle} />
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para crear equipos.</p>
+          <Link href="/equipos" className="text-[#2c528c] hover:underline mt-2 inline-block">Volver al listado</Link>
+        </div>
+      </>
+    )
+  }
+
   useEffect(() => {
     loadBranches(form.empresaId)
     setForm(prev => ({ ...prev, sucursalId: '' }))
@@ -115,6 +135,14 @@ export default function NuevoEquipoPage() {
   }
 
   const handleSubmit = () => {
+    if (!canCreate) {
+      toast({
+        title: 'Sin permisos',
+        description: 'No tienes permisos para crear equipos.',
+        variant: 'destructive',
+      })
+      return
+    }
     ;(async () => {
       if (!form.sucursalId) {
         toast({

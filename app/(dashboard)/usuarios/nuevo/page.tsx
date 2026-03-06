@@ -31,6 +31,26 @@ function normalizeBranchesResponse(raw: unknown): Branch[] {
   return []
 }
 
+function formatBackendDetails(details: unknown): string {
+  const lines: string[] = []
+
+  const walk = (value: unknown, path: string[]) => {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      const msg = value.map(String).join(' ')
+      if (msg) lines.push(`${path.join('.')}: ${msg}`)
+      return
+    }
+
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      walk(v, [...path, k])
+    }
+  }
+
+  walk(details, [])
+  return lines.join('\n')
+}
+
 function branchToSucursal(branch: Branch): Sucursal {
   return {
     id: String(branch.id),
@@ -483,11 +503,7 @@ export default function NuevoUsuarioPage() {
     })
 
     if (!response.success) {
-      const detailsText = response.details
-        ? Object.entries(response.details)
-          .map(([k, v]) => `${k}: ${v.join(' ')}`)
-          .join('\n')
-        : ''
+      const detailsText = formatBackendDetails((response as any).details ?? (response as any).data?.details)
       toast({
         title: 'Error al crear usuario',
         description: detailsText || response.error || 'No se pudo crear el usuario.',
@@ -723,7 +739,6 @@ export default function NuevoUsuarioPage() {
                     type="date"
                     value={formData.profile.fecha_nacimiento}
                     onChange={handleChange}
-                    required
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
@@ -740,11 +755,10 @@ export default function NuevoUsuarioPage() {
                     type="text"
                     value={formData.profile.telefono}
                     onChange={handleChange}
-                    required
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-                <div>
+                {/* <div>
                   <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Número credencial
                   </label>
@@ -757,7 +771,7 @@ export default function NuevoUsuarioPage() {
                     required
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
-                </div>
+                </div> */}
               </div>
 
               <div>

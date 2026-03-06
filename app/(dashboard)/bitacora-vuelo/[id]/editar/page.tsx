@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { FlightOrdersService, type FlightOrder } from '@/services/flight-orders.service'
 import { FlightLogsService, type FlightLog } from '@/services/flights-logs.service'
 import { DronesService, type DroneDetail, type DroneListItem } from '@/services/drones.service'
-import { canAction, canView } from '@/lib/permissions'
+import { canAction, canView, getCurrentRole, getCurrentUserFromStorage } from '@/lib/permissions'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 
 export default function EditarBitacoraPage() {
@@ -64,11 +64,22 @@ export default function EditarBitacoraPage() {
     setMounted(true)
   }, [params.id])
 
+  const currentRole = useMemo(() => (mounted ? getCurrentRole() : null), [mounted])
+  const currentUser = useMemo(() => (mounted ? getCurrentUserFromStorage() : null), [mounted])
+  const isOperator = currentRole === 'operador'
+  const defaultBranchId = useMemo(() => {
+    const b0 = (currentUser as any)?.branches?.[0]
+    return b0?.id ? String(b0.id) : ''
+  }, [currentUser])
+
   useEffect(() => {
     if (!mounted || !canRead) return
 
     const loadLists = async () => {
-      const ordersRes = await FlightOrdersService.listOrders({ ordering: '-scheduled_date' })
+      const ordersRes = await FlightOrdersService.listOrders({
+        ordering: '-scheduled_date',
+        branch_id: isOperator && defaultBranchId ? Number(defaultBranchId) : undefined,
+      })
 
       if (ordersRes.success && ordersRes.data) {
         const data: unknown = ordersRes.data
@@ -81,7 +92,7 @@ export default function EditarBitacoraPage() {
     }
 
     loadLists()
-  }, [mounted, canRead])
+  }, [mounted, canRead, isOperator, defaultBranchId])
 
   useEffect(() => {
     if (!mounted || !canRead) return

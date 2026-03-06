@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
@@ -11,7 +11,7 @@ import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { UsersService, type User } from '@/services/users.service'
 import { BranchService, type Branch } from '@/services/branches.service'
-import { canAction, canView } from '@/lib/permissions'
+import { canAction, canView, getCurrentRole, getCurrentUserFromStorage } from '@/lib/permissions'
 import { buildFlightOrderPdfHtml, downloadPdfFromHtml, openPrintPdf } from '@/lib/pdf'
 
 export default function OrdenesVueloPage() {
@@ -23,6 +23,18 @@ export default function OrdenesVueloPage() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const currentRole = useMemo(() => (mounted ? getCurrentRole() : null), [mounted])
+  const currentUser = useMemo(() => (mounted ? getCurrentUserFromStorage() : null), [mounted])
+  const isOperator = currentRole === 'operador'
+  const defaultBranchId = useMemo(() => {
+    const b0 = (currentUser as any)?.branches?.[0]
+    return b0?.id ? String(b0.id) : ''
+  }, [currentUser])
+  const defaultOperatorId = useMemo(() => {
+    const id = (currentUser as any)?.id
+    return id ? String(id) : ''
+  }, [currentUser])
 
   const canRead = mounted && canView('ordenes_vuelo')
   const canCreate = mounted && canAction('ordenes_vuelo', 'create')
@@ -144,24 +156,34 @@ export default function OrdenesVueloPage() {
   useEffect(() => {
     if (!mounted || !canRead) return
 
+    if (isOperator) {
+      setFilters((p) => ({
+        ...p,
+        branch_id: p.branch_id || defaultBranchId,
+        operator_id: p.operator_id || defaultOperatorId,
+      }))
+    }
+
     const loadFiltersData = async () => {
-      const [companiesRes, usersRes] = await Promise.all([
-        CompanyService.getCompanies({ page: 1, page_size: 1000 }),
-        UsersService.getUsers({ page: 1, page_size: 1000 }),
-      ])
+      const companiesRes = await CompanyService.getCompanies({ page: 1, page_size: 1000 })
 
       if (companiesRes.success && companiesRes.data?.results) {
         setCompanies(companiesRes.data.results)
       }
 
-      if (usersRes.success && usersRes.data?.results) {
-        const ops = usersRes.data.results.filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
-        setOperators(ops)
+      if (!isOperator) {
+        const usersRes = await UsersService.getUsers({ page: 1, page_size: 1000 })
+        if (usersRes.success && usersRes.data?.results) {
+          const ops = usersRes.data.results.filter((u) => String(u.groups?.[0]?.name ?? '').toLowerCase() === 'operador')
+          setOperators(ops)
+        }
+      } else {
+        setOperators([])
       }
     }
 
     loadFiltersData()
-  }, [mounted, canRead])
+  }, [mounted, canRead, isOperator, defaultBranchId, defaultOperatorId])
 
   useEffect(() => {
     if (!mounted || !canRead) return
@@ -322,6 +344,7 @@ export default function OrdenesVueloPage() {
                 placeholder="Todos"
                 searchPlaceholder="Buscar operador..."
                 triggerClassName="text-xs"
+                disabled={isOperator}
               />
             </div>
 

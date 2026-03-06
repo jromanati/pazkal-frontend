@@ -89,7 +89,6 @@ export default function UsuariosPage() {
         // if (!isRefreshValid) window.location.href = "/"
         // }
         const response = await UsersService.getUsers({ page: 1, page_size: 20 })
-        console.log(response)
         if (!response.success || !response.data) return null
         return response.data
     }

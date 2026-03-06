@@ -63,7 +63,6 @@ class ApiClient {
   }
 
   setToken(token: string | null) {
-    console.log(token, 'Token???')
     if (!token) {
       localStorage.removeItem("token")
       this.token = null
@@ -169,7 +168,6 @@ class ApiClient {
     try {
       const url = `${this.baseUrl}${endpoint}`
       const token = localStorage.getItem("token")
-      console.log(token, 'TOken!')
 
       const mergedHeaders: HeadersInit = {
         ...(options.headers || {}),

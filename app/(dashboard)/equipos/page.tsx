@@ -9,10 +9,21 @@ import { useToast } from '@/hooks/use-toast'
 import { CompanyService, type CompanyListItem } from '@/services/company.service'
 import { BranchService, type Branch } from '@/services/branches.service'
 import { DronesService, type DroneListItem, type PaginatedResponse } from '@/services/drones.service'
+import { canAction, canView } from '@/lib/permissions'
 
 export default function EquiposPage() {
   const { toggle } = useSidebar()
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const canRead = mounted && canView('equipos')
+  const canCreate = mounted && canAction('equipos', 'create')
+  const canUpdate = mounted && canAction('equipos', 'update')
+  const canDelete = mounted && canAction('equipos', 'delete')
   const [equipos, setEquipos] = useState<DroneListItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -43,6 +54,17 @@ export default function EquiposPage() {
   const normalizeList = (data: DroneListItem[] | PaginatedResponse<DroneListItem>) => {
     if (Array.isArray(data)) return data
     return data?.results ?? []
+  }
+
+  if (mounted && !canRead) {
+    return (
+      <>
+        <Header onMenuClick={toggle} />
+        <div className="p-8 text-center">
+          <p className="text-gray-500">No tienes permisos para acceder a esta sección.</p>
+        </div>
+      </>
+    )
   }
 
   const loadCompanies = async () => {
@@ -157,10 +179,12 @@ export default function EquiposPage() {
               {isLoading ? 'Cargando...' : `${equipos.length} equipos registrados`}
             </p>
           </div>
-          <Link href="/equipos/nuevo" className="bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md">
-            <span className="material-symbols-outlined text-base sm:text-lg">add</span>
-            Nuevo Equipo
-          </Link>
+          {canCreate && (
+            <Link href="/equipos/nuevo" className="bg-[#2c528c] hover:bg-blue-800 text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md">
+              <span className="material-symbols-outlined text-base sm:text-lg">add</span>
+              Nuevo Equipo
+            </Link>
+          )}
         </div>
 
         {/* Filters */}
@@ -291,12 +315,18 @@ export default function EquiposPage() {
                   <td className="px-6 py-4 text-center">{estadoBadge(equipo.is_active ? 'activo' : 'inactivo')}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-1">
-                      <Link href={`/equipos/${equipo.id}/editar`} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Editar">
-                        <span className="material-symbols-outlined text-lg text-gray-500 hover:text-[#2c528c]">edit</span>
+                      <Link
+                        href={`/equipos/${equipo.id}/editar`}
+                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        title={canUpdate ? 'Editar' : 'Ver detalle'}
+                      >
+                        <span className="material-symbols-outlined text-lg text-gray-500 hover:text-[#2c528c]">{canUpdate ? 'edit' : 'visibility'}</span>
                       </Link>
-                      <button onClick={() => setDeleteModal({ open: true, equipo })} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Eliminar">
-                        <span className="material-symbols-outlined text-lg text-gray-500 hover:text-red-500">delete</span>
-                      </button>
+                      {canDelete && (
+                        <button onClick={() => setDeleteModal({ open: true, equipo })} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Eliminar">
+                          <span className="material-symbols-outlined text-lg text-gray-500 hover:text-red-500">delete</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -329,11 +359,13 @@ export default function EquiposPage() {
               </div>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <Link href={`/equipos/${equipo.id}/editar`} className="text-xs font-semibold text-[#2c528c] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-base">edit</span> Editar
+                  <span className="material-symbols-outlined text-base">{canUpdate ? 'edit' : 'visibility'}</span> {canUpdate ? 'Editar' : 'Ver'}
                 </Link>
-                <button onClick={() => setDeleteModal({ open: true, equipo })} className="text-xs font-semibold text-red-500 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-base">delete</span> Eliminar
-                </button>
+                {canDelete && (
+                  <button onClick={() => setDeleteModal({ open: true, equipo })} className="text-xs font-semibold text-red-500 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-base">delete</span> Eliminar
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
@@ -14,7 +14,7 @@ import { CompanyService, type CompanyListItem } from '@/services/company.service
 import { BranchService, type Branch } from '@/services/branches.service'
 import { UsersService, type User } from '@/services/users.service'
 import { FlightOrdersService, type FlightOrder, type FlightOrderStatus } from '@/services/flight-orders.service'
-import { canAction, canView } from '@/lib/permissions'
+import { canAction, canView, getCurrentRole, getCurrentUserFromStorage } from '@/lib/permissions'
 
 export default function EditarOrdenVueloPage() {
   const router = useRouter()
@@ -53,6 +53,10 @@ export default function EditarOrdenVueloPage() {
     setMounted(true)
   }, [params.id])
 
+  const currentRole = useMemo(() => (mounted ? getCurrentRole() : null), [mounted])
+  const currentUser = useMemo(() => (mounted ? getCurrentUserFromStorage() : null), [mounted])
+  const isOperator = currentRole === 'operador'
+
   useEffect(() => {
     if (!mounted || !canRead) return
 
@@ -90,6 +94,11 @@ export default function EditarOrdenVueloPage() {
 
   const loadOperators = async (branchId: string) => {
     if (!branchId) {
+      setOperators([])
+      return
+    }
+
+    if (isOperator) {
       setOperators([])
       return
     }
@@ -149,6 +158,36 @@ export default function EditarOrdenVueloPage() {
         }
 
         setOrden(o)
+
+        if (isOperator) {
+          const opFromOrder: any = o?.operator
+          const meId = (currentUser as any)?.id
+          const fallbackId = String(opFromOrder?.id ?? meId ?? '')
+          if (fallbackId) {
+            setOperators([
+              {
+                id: Number(opFromOrder?.id ?? meId),
+                email: String(opFromOrder?.email ?? (currentUser as any)?.email ?? ''),
+                first_name: String(opFromOrder?.first_name ?? (currentUser as any)?.first_name ?? ''),
+                last_name: String(opFromOrder?.last_name ?? (currentUser as any)?.last_name ?? ''),
+                phone: String((opFromOrder as any)?.phone ?? (currentUser as any)?.phone ?? ''),
+                avatar: (opFromOrder as any)?.avatar,
+                is_active: true,
+                is_staff: false,
+                is_superuser: false,
+                companies: (currentUser as any)?.companies,
+                branches: (currentUser as any)?.branches,
+                groups: (currentUser as any)?.groups ?? [{ id: 0, name: 'operador' }],
+                profile: (currentUser as any)?.profile ?? null,
+                permissions: (currentUser as any)?.permissions,
+                created_at: String((currentUser as any)?.created_at ?? ''),
+                updated_at: (currentUser as any)?.updated_at,
+                last_login: (currentUser as any)?.last_login,
+              } as any,
+            ])
+          }
+        }
+
         setFormData({
           empresa: companyId,
           sucursal: branchId,
@@ -174,7 +213,7 @@ export default function EditarOrdenVueloPage() {
     }
 
     loadOrder()
-  }, [mounted, canRead, params.id])
+  }, [mounted, canRead, params.id, isOperator, currentUser])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
