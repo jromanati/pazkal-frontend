@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
@@ -30,6 +30,11 @@ export default function DashboardPage() {
     year_change_percent: string
     monthly_data: Array<{ month: number; month_name: string; minutes: number }>
   } | null>(null)
+
+  const chartContainerRef = useRef<HTMLDivElement | null>(null)
+  const [hoveredMonthIdx, setHoveredMonthIdx] = useState<number | null>(null)
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null)
+  const [chartAnimKey, setChartAnimKey] = useState(0)
 
   const [isLoading, setIsLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -111,6 +116,12 @@ export default function DashboardPage() {
     })()
   }, [mounted, selectedYear, selectedCompanyId])
 
+  useEffect(() => {
+    if (!mounted) return
+    if (!activity) return
+    setChartAnimKey(k => k + 1)
+  }, [mounted, activity?.year, selectedCompanyId, selectedYear])
+
   const selectedCompany = companies.find(c => String(c.id) === selectedCompanyId)
 
   const monthlyMinutes = useMemo(() => {
@@ -124,7 +135,6 @@ export default function DashboardPage() {
 
   const chart = useMemo(() => {
     const width = 500
-    const height = 150
     const bottom = 140
     const top = 20
     const maxY = bottom - top
@@ -139,7 +149,7 @@ export default function DashboardPage() {
 
     const line = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
     const area = `${line} L${width},${bottom} L0,${bottom} Z`
-    return { line, area }
+    return { line, area, points }
   }, [monthlyMinutes])
 
   const parsePercent = (raw: string | undefined) => {
@@ -365,20 +375,85 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="relative w-full h-[180px] sm:h-[220px] lg:h-[280px] py-2 sm:py-4">
-              <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 500 150">
-                <line className="text-gray-100 dark:text-gray-800" stroke="currentColor" strokeDasharray="4" x1="0" x2="500" y1="20" y2="20" />
-                <line className="text-gray-100 dark:text-gray-800" stroke="currentColor" strokeDasharray="4" x1="0" x2="500" y1="60" y2="60" />
-                <line className="text-gray-100 dark:text-gray-800" stroke="currentColor" strokeDasharray="4" x1="0" x2="500" y1="100" y2="100" />
-                <line className="text-gray-200 dark:text-gray-700" stroke="currentColor" x1="0" x2="500" y1="140" y2="140" />
-                <defs>
-                  <linearGradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
-                    <stop offset="0%" stopColor="#2c528c" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#2c528c" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d={chart.area} fill="url(#chartGradient)" />
-                <path d={chart.line} fill="none" stroke="#2c528c" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
-              </svg>
+              <div ref={chartContainerRef} className="relative w-full h-full">
+                {isLoading && (
+                  <div className="absolute inset-0 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/60">
+                    <div className="absolute inset-0 dash-shimmer" />
+                    <div className="absolute inset-0 opacity-40">
+                      <div className="absolute left-0 right-0 top-[15%] h-px bg-gray-200 dark:bg-gray-700" />
+                      <div className="absolute left-0 right-0 top-[45%] h-px bg-gray-200 dark:bg-gray-700" />
+                      <div className="absolute left-0 right-0 top-[75%] h-px bg-gray-200 dark:bg-gray-700" />
+                    </div>
+                  </div>
+                )}
+
+                {tooltip && hoveredMonthIdx !== null && (
+                  <div
+                    className="absolute z-10 pointer-events-none"
+                    style={{ left: tooltip.x, top: tooltip.y }}
+                  >
+                    <div className="-translate-x-1/2 -translate-y-full bg-slate-900 text-white text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-md shadow-lg whitespace-nowrap">
+                      {(monthlyMinutes[hoveredMonthIdx]?.month_name || '').trim() || `Mes ${monthlyMinutes[hoveredMonthIdx]?.month}`}: {' '}
+                      {(monthlyMinutes[hoveredMonthIdx]?.minutes ?? 0).toLocaleString()} min
+                    </div>
+                  </div>
+                )}
+
+                <svg
+                  className="w-full h-full"
+                  preserveAspectRatio="none"
+                  viewBox="0 0 500 150"
+                  onMouseLeave={() => {
+                    setHoveredMonthIdx(null)
+                    setTooltip(null)
+                  }}
+                >
+                  <line className="text-gray-100 dark:text-gray-800" stroke="currentColor" strokeDasharray="4" x1="0" x2="500" y1="20" y2="20" />
+                  <line className="text-gray-100 dark:text-gray-800" stroke="currentColor" strokeDasharray="4" x1="0" x2="500" y1="60" y2="60" />
+                  <line className="text-gray-100 dark:text-gray-800" stroke="currentColor" strokeDasharray="4" x1="0" x2="500" y1="100" y2="100" />
+                  <line className="text-gray-200 dark:text-gray-700" stroke="currentColor" x1="0" x2="500" y1="140" y2="140" />
+                  <defs>
+                    <linearGradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+                      <stop offset="0%" stopColor="#2c528c" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="#2c528c" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+
+                  <path key={`area-${chartAnimKey}`} d={chart.area} fill="url(#chartGradient)" className="dash-area" />
+                  <path
+                    key={`line-${chartAnimKey}`}
+                    d={chart.line}
+                    fill="none"
+                    stroke="#2c528c"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="3"
+                    className="dash-line"
+                  />
+
+                  {chart.points.map((p, idx) => (
+                    <g
+                      key={`pt-${idx}`}
+                      onMouseEnter={(e) => {
+                        setHoveredMonthIdx(idx)
+                        const el = chartContainerRef.current
+                        if (!el) return
+                        const rect = el.getBoundingClientRect()
+                        setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+                      }}
+                      onMouseMove={(e) => {
+                        const el = chartContainerRef.current
+                        if (!el) return
+                        const rect = el.getBoundingClientRect()
+                        setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+                      }}
+                    >
+                      <circle cx={p.x} cy={p.y} r={hoveredMonthIdx === idx ? 7 : 5} fill="#2c528c" opacity={hoveredMonthIdx === idx ? 1 : 0.85} />
+                      <circle cx={p.x} cy={p.y} r={14} fill="transparent" />
+                    </g>
+                  ))}
+                </svg>
+              </div>
             </div>
             <div className="flex justify-between px-1 sm:px-2 overflow-x-auto">
               {monthlyMinutes.map((m) => (
@@ -398,6 +473,46 @@ export default function DashboardPage() {
         {isLoading && (
           <div className="mt-4 text-xs text-gray-400">Actualizando datos...</div>
         )}
+
+        <style jsx>{`
+          .dash-line {
+            stroke-dasharray: 1200;
+            stroke-dashoffset: 1200;
+            animation: dashDraw 900ms ease-out forwards;
+          }
+
+          .dash-area {
+            opacity: 0;
+            animation: dashFade 700ms ease-out 150ms forwards;
+          }
+
+          .dash-shimmer {
+            background: linear-gradient(90deg, rgba(44, 82, 140, 0) 0%, rgba(44, 82, 140, 0.08) 50%, rgba(44, 82, 140, 0) 100%);
+            transform: translateX(-100%);
+            animation: shimmerMove 1100ms ease-in-out infinite;
+          }
+
+          @keyframes dashDraw {
+            to {
+              stroke-dashoffset: 0;
+            }
+          }
+
+          @keyframes dashFade {
+            to {
+              opacity: 1;
+            }
+          }
+
+          @keyframes shimmerMove {
+            0% {
+              transform: translateX(-100%);
+            }
+            100% {
+              transform: translateX(100%);
+            }
+          }
+        `}</style>
       </div>
     </>
   )
