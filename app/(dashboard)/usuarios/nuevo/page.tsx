@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -327,7 +327,7 @@ export default function NuevoUsuarioPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
   const [branchesByCompany, setBranchesByCompany] = useState<Record<string, Branch[]>>({})
-  const validGroups = ['Gerente', 'Operador', 'Visualizador'] as const
+  const validGroups = ['Gerente', 'Visualizador'] as const
   const [modalEmpresas, setModalEmpresas] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -352,6 +352,11 @@ export default function NuevoUsuarioPage() {
       empresa_capacitadora: '',
     }
   })
+
+  const isGerente = useMemo(() => {
+    if (formData.is_superuser) return true
+    return String(formData.group_name || '').toLowerCase() === 'gerente'
+  }, [formData.group_name, formData.is_superuser])
 
   useEffect(() => {
     const run = async () => {
@@ -382,6 +387,16 @@ export default function NuevoUsuarioPage() {
     const name = target.name
 
     if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+      if (name === 'is_superuser') {
+        const checked = target.checked
+        setFormData({
+          ...formData,
+          is_superuser: checked,
+          ...(checked ? { group_name: '' } : {}),
+        })
+        return
+      }
+
       setFormData({ ...formData, [name]: target.checked })
       return
     }
@@ -465,11 +480,11 @@ export default function NuevoUsuarioPage() {
     }
 
     const groupName = (() => {
+      if (formData.is_superuser) return 'Gerente'
       const g = (formData.group_name || '').trim()
       const mapped: Record<string, (typeof validGroups)[number]> = {
         gerente: 'Gerente',
         gerencia: 'Gerente',
-        operador: 'Operador',
         visualizador: 'Visualizador',
       }
       return mapped[g.toLowerCase()] ?? g
@@ -489,7 +504,7 @@ export default function NuevoUsuarioPage() {
         rut: formData.profile.rut,
         fecha_nacimiento: formData.profile.fecha_nacimiento,
         telefono: formData.profile.telefono,
-        numero_credencial: Number(formData.profile.numero_credencial) || 0,
+        numero_credencial: Number(formData.profile.numero_credencial) || 1,
         fecha_otorgamiento_credencial: formData.profile.fecha_otorgamiento_credencial,
         fecha_vencimiento_credencial: formData.profile.fecha_vencimiento_credencial,
         habilitaciones: String(formData.profile.habilitaciones)
@@ -670,24 +685,26 @@ export default function NuevoUsuarioPage() {
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-                <div>
-                  <label htmlFor="group_name" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Grupo
-                  </label>
-                  <select
-                    id="group_name"
-                    name="group_name"
-                    value={formData.group_name}
-                    onChange={handleChange}
-                    required
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
-                  >
-                    <option value="">Seleccione grupo</option>
-                    {validGroups.map((group) => (
-                      <option key={group} value={group}>{group}</option>
-                    ))}
-                  </select>
-                </div>
+                {!formData.is_superuser && (
+                  <div>
+                    <label htmlFor="group_name" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                      Grupo
+                    </label>
+                    <select
+                      id="group_name"
+                      name="group_name"
+                      value={formData.group_name}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                    >
+                      <option value="">Seleccione grupo</option>
+                      {validGroups.map((group) => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -758,20 +775,22 @@ export default function NuevoUsuarioPage() {
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-                {/* <div>
-                  <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Número credencial
-                  </label>
-                  <input
-                    id="profile.numero_credencial"
-                    name="profile.numero_credencial"
-                    type="number"
-                    value={String(formData.profile.numero_credencial)}
-                    onChange={handleChange}
-                    required
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
-                  />
-                </div> */}
+                {isGerente && !formData.is_superuser && (
+                  <div>
+                    <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                      Número credencial
+                    </label>
+                    <input
+                      id="profile.numero_credencial"
+                      name="profile.numero_credencial"
+                      type="number"
+                      value={String(formData.profile.numero_credencial)}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

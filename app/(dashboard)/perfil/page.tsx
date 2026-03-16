@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header'
 import { useSidebar } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { AuthService } from '@/services/auth.service'
+import { UsersService } from '@/services/users.service'
 
 export default function PerfilPage() {
   const { toggle } = useSidebar()
@@ -16,6 +17,10 @@ export default function PerfilPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+
+  const [userId, setUserId] = useState<number | null>(null)
+  const [isOperator, setIsOperator] = useState(false)
+  const [credentialUrl, setCredentialUrl] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     email: '',
@@ -48,6 +53,24 @@ export default function PerfilPage() {
         }
 
         const u = response.data
+        const id = typeof u?.id === 'number' ? u.id : u?.id ? Number(u.id) : null
+        setUserId(id)
+
+        const rawGroup = String(u?.groups?.[0]?.name ?? '').toLowerCase()
+        const operator = rawGroup === 'operador'
+        setIsOperator(operator)
+
+        if (operator && id) {
+          const credRes = await UsersService.getCredentialImage(id)
+          if (credRes.success && credRes.data?.has_image && credRes.data.image_url) {
+            setCredentialUrl(credRes.data.image_url)
+          } else {
+            setCredentialUrl(null)
+          }
+        } else {
+          setCredentialUrl(null)
+        }
+
         setFormData((prev) => ({
           ...prev,
           email: u.email ?? '',
@@ -65,6 +88,11 @@ export default function PerfilPage() {
 
     run()
   }, [mounted, toast])
+
+  const handleDownloadCredential = async () => {
+    if (!credentialUrl) return
+    window.open(credentialUrl, '_blank', 'noopener,noreferrer')
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -151,6 +179,18 @@ export default function PerfilPage() {
               Actualiza tus datos personales. No puedes modificar tu grupo ni tus empresas.
             </p>
           </div>
+
+          {mounted && isOperator && (
+            <button
+              type="button"
+              onClick={handleDownloadCredential}
+              disabled={loading || !credentialUrl}
+              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-[#2c528c] dark:hover:border-[#2c528c] disabled:opacity-70 text-slate-700 dark:text-gray-100 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-lg">download</span>
+              Descargar credencial
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">

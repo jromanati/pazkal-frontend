@@ -181,7 +181,13 @@ export function buildFlightLogPdfHtml(args: {
   return { title, documentTitle, html: blocks.join("\n") }
 }
 
-export function buildFlightOrderPdfHtml(args: { order: any }): { title: string; html: string; documentTitle: string } {
+export function buildFlightOrderPdfHtml(args: {
+  order: any
+  managerSignatureDataUrl?: string
+  managerName?: string
+  managerEmail?: string
+  managerPhone?: string
+}): { title: string; html: string; documentTitle: string } {
   const o = args.order ?? {}
 
   const title = `Orden de Vuelo ${o.order_number ? `#${o.order_number}` : ""}`.trim()
@@ -238,10 +244,35 @@ export function buildFlightOrderPdfHtml(args: { order: any }): { title: string; 
     </div>
   </div>`)
 
-  blocks.push(`<div class="footer">
-    <div class="muted">Generado desde Pazkal</div>
-    <div class="muted">${escapeHtml(new Date().toLocaleString("es-CL"))}</div>
-  </div>`)
+  // blocks.push(`<div class="footer">
+  //   <div class="muted">Generado desde Pazkal</div>
+  //   <div class="muted">${escapeHtml(new Date().toLocaleString("es-CL"))}</div>
+  // </div>`)
+
+  if (args.managerName || args.managerEmail || args.managerPhone) {
+    blocks.push(`<div class="section">
+      <h2>Datos del gerente de operaciones</h2>
+      <div class="card">
+        ${fieldsGrid([
+          { k: "Nombre", v: args.managerName },
+          { k: "Email", v: args.managerEmail },
+          { k: "Teléfono", v: args.managerPhone },
+        ])}
+      </div>
+    </div>`)
+  }
+
+  if (args.managerSignatureDataUrl) {
+    blocks.push(`<div class="section" style="page-break-before: always;">
+      <h2>Firma del gerente</h2>
+      <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+        ${args.managerName ? `<div class="muted">${escapeHtml(args.managerName)}</div>` : ''}
+        <div style="border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--soft); min-height:220px; display:flex; align-items:center; justify-content:center;">
+          <img src="${args.managerSignatureDataUrl}" alt="Firma del gerente" style="max-width:680px; max-height:880px; width:auto; height:auto; object-fit:contain; display:block;" />
+        </div>
+      </div>
+    </div>`)
+  }
 
   return { title, documentTitle, html: blocks.join("\n") }
 }
@@ -383,6 +414,71 @@ export async function downloadPdfFromHtml({ title, html, filename }: DownloadPdf
       })
       .from(content)
       .save()
+  } finally {
+    host.remove()
+  }
+}
+
+export async function renderPdfBlobFromHtml({ title, html }: { title: string; html: string }): Promise<Blob> {
+  if (typeof window === "undefined") {
+    throw new Error("No disponible en servidor")
+  }
+
+  const mod: any = await import("html2pdf.js")
+  const html2pdf: any = mod?.default ?? mod
+
+  const host = window.document.createElement("div")
+  host.style.position = "fixed"
+  host.style.left = "0"
+  host.style.top = "0"
+  host.style.width = "210mm"
+  host.style.background = "white"
+  host.style.opacity = "0"
+  host.style.pointerEvents = "none"
+  host.style.zIndex = "-1"
+
+  const style = window.document.createElement("style")
+  style.textContent = getPdfCss()
+  host.appendChild(style)
+
+  const content = window.document.createElement("div")
+  content.innerHTML = html
+  host.appendChild(content)
+
+  window.document.body.appendChild(host)
+
+  try {
+    const worker: any = html2pdf().set({
+      margin: [14, 12, 14, 12],
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: host.scrollWidth || undefined,
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    }).from(content)
+
+    const out = async (): Promise<Blob> => {
+      if (typeof worker.outputPdf === "function") {
+        return worker.outputPdf("blob")
+      }
+      if (typeof worker.output === "function") {
+        return worker.output("blob")
+      }
+      if (typeof worker.outputPdf === "function") {
+        const uri: string = await worker.outputPdf("bloburi")
+        const res = await fetch(uri)
+        return res.blob()
+      }
+      throw new Error("html2pdf: no se pudo obtener salida blob")
+    }
+
+    return await out()
   } finally {
     host.remove()
   }

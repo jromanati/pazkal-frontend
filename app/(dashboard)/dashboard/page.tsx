@@ -14,6 +14,25 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false)
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1)
+
+  const monthOptions = useMemo(
+    () => [
+      { value: 1, label: 'Enero' },
+      { value: 2, label: 'Febrero' },
+      { value: 3, label: 'Marzo' },
+      { value: 4, label: 'Abril' },
+      { value: 5, label: 'Mayo' },
+      { value: 6, label: 'Junio' },
+      { value: 7, label: 'Julio' },
+      { value: 8, label: 'Agosto' },
+      { value: 9, label: 'Septiembre' },
+      { value: 10, label: 'Octubre' },
+      { value: 11, label: 'Noviembre' },
+      { value: 12, label: 'Diciembre' },
+    ],
+    [],
+  )
 
   const [companies, setCompanies] = useState<Array<{ id: number; name: string; code: string }>>([])
   const [stats, setStats] = useState<{
@@ -73,7 +92,7 @@ export default function DashboardPage() {
     ;(async () => {
       try {
         const [statsRes, activityRes] = await Promise.all([
-          DashboardService.getStats({ year: selectedYear, company_id: companyIdParam }),
+          DashboardService.getStats({ year: selectedYear, month: selectedMonth, company_id: companyIdParam }),
           DashboardService.getCompaniesActivity({ year: selectedYear, company_id: companyIdParam }),
         ])
 
@@ -114,7 +133,7 @@ export default function DashboardPage() {
         setIsLoading(false)
       }
     })()
-  }, [mounted, selectedYear, selectedCompanyId])
+  }, [mounted, selectedYear, selectedMonth, selectedCompanyId])
 
   useEffect(() => {
     if (!mounted) return
@@ -230,6 +249,19 @@ export default function DashboardPage() {
                 ))}
               </select>
             </div>
+            <div className="flex-1">
+              <label className="sr-only" htmlFor="mes">Seleccionar Mes</label>
+              <select
+                className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-xs sm:text-sm rounded-lg focus:ring-[#2c528c] focus:border-[#2c528c] text-gray-700 dark:text-gray-200 p-2 sm:p-2.5"
+                id="mes"
+                value={String(selectedMonth)}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              >
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={String(m.value)}>{m.label}</option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={handleExport}
               disabled={isExporting}
@@ -242,7 +274,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Active filters indicator */}
-        {(selectedCompanyId || selectedYear !== now.getFullYear()) && (
+        {(selectedCompanyId || selectedYear !== now.getFullYear() || selectedMonth !== now.getMonth() + 1) && (
           <div className="mb-4 lg:mb-6 flex items-center gap-2 flex-wrap">
             <span className="text-[10px] sm:text-xs text-gray-500 font-medium">Filtros activos:</span>
             {selectedCompany && (
@@ -267,8 +299,19 @@ export default function DashboardPage() {
                 </button>
               </span>
             )}
+            {selectedMonth !== now.getMonth() + 1 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-[#2c528c]/10 text-[#2c528c] text-[10px] sm:text-xs font-medium rounded-full">
+                Mes {selectedMonth}
+                <button
+                  onClick={() => setSelectedMonth(now.getMonth() + 1)}
+                  className="hover:bg-[#2c528c]/20 rounded-full p-0.5"
+                >
+                  <span className="material-symbols-outlined text-xs sm:text-sm">close</span>
+                </button>
+              </span>
+            )}
             <button 
-              onClick={() => { setSelectedCompanyId(''); setSelectedYear(now.getFullYear()); }}
+              onClick={() => { setSelectedCompanyId(''); setSelectedYear(now.getFullYear()); setSelectedMonth(now.getMonth() + 1); }}
               className="text-[10px] sm:text-xs text-gray-500 hover:text-red-500 font-medium underline"
             >
               Limpiar todo

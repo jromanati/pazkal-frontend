@@ -475,6 +475,7 @@ function DocumentosEmpresa({
     // { type: 'equipment_records', label: 'Registros de equipo', icon: 'inventory_2', desc: 'PDF, JPG, PNG - máx 10MB' },
     // { type: 'flight_auth', label: 'Autorizaciones de vuelo', icon: 'task', desc: 'PDF, JPG, PNG - máx 10MB' },
     { type: 'kmz', label: 'KMZ', icon: 'map', desc: 'KMZ - máx 10MB' },
+    { type: 'manager_signature', label: 'Firma del gerente', icon: 'draw', desc: 'PNG, JPG - máx 10MB' },
     // { type: 'mandate_auth', label: 'Carta de autorización mandante', icon: 'history_edu', desc: 'PDF, JPG, PNG - máx 10MB' },
     // { type: 'special_auth', label: 'Autorizaciones especiales', icon: 'workspace_premium', desc: 'PDF, JPG, PNG - máx 10MB' },
     // { type: 'aircraft_maint', label: 'Mantención de aeronave', icon: 'build_circle', desc: 'PDF, JPG, PNG - máx 10MB' },

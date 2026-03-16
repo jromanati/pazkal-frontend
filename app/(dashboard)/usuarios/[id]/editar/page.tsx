@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
@@ -362,6 +362,11 @@ export default function EditarUsuarioPage() {
     }
   })
 
+  const isGerente = useMemo(() => {
+    if (formData.is_superuser) return true
+    return String(formData.group_name || '').toLowerCase() === 'gerente'
+  }, [formData.group_name, formData.is_superuser])
+
   const ensureBranches = async (companyId: string) => {
     if (branchesByCompany[companyId]) return
 
@@ -529,6 +534,16 @@ export default function EditarUsuarioPage() {
     const name = target.name
 
     if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+      if (name === 'is_superuser') {
+        const checked = target.checked
+        setFormData({
+          ...formData,
+          is_superuser: checked,
+          ...(checked ? { group_name: 'gerente', numero_credencial: 1 } : {}),
+        })
+        return
+      }
+
       setFormData({ ...formData, [name]: target.checked })
       return
     }
@@ -580,6 +595,7 @@ export default function EditarUsuarioPage() {
     }
 
     const groupName = (() => {
+      if (formData.is_superuser) return 'Gerente'
       const g = (formData.group_name || '').trim()
       const mapped: Record<string, (typeof validGroups)[number]> = {
         gerente: 'Gerente',
@@ -603,15 +619,15 @@ export default function EditarUsuarioPage() {
         rut: formData.profile.rut,
         fecha_nacimiento: formData.profile.fecha_nacimiento,
         telefono: formData.profile.telefono,
-        numero_credencial: Number(formData.profile.numero_credencial) || 0,
-        fecha_otorgamiento_credencial: formData.profile.fecha_otorgamiento_credencial,
-        fecha_vencimiento_credencial: formData.profile.fecha_vencimiento_credencial,
+        numero_credencial: Number(formData.profile.numero_credencial) || 1,
+        // fecha_otorgamiento_credencial: formData.profile.fecha_otorgamiento_credencial,
+        // fecha_vencimiento_credencial: formData.profile.fecha_vencimiento_credencial,
         habilitaciones: String(formData.profile.habilitaciones)
           .split(',')
           .map(s => s.trim())
           .filter(Boolean),
-        eficiencia_operativa: formData.profile.eficiencia_operativa,
-        fecha_ultima_capacitacion: formData.profile.fecha_ultima_capacitacion,
+        // eficiencia_operativa: formData.profile.eficiencia_operativa,
+        // fecha_ultima_capacitacion: formData.profile.fecha_ultima_capacitacion,
         empresa_capacitadora: formData.profile.empresa_capacitadora,
       },
     }
@@ -793,24 +809,26 @@ export default function EditarUsuarioPage() {
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-                <div>
-                  <label htmlFor="group_name" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Grupo
-                  </label>
-                  <select
-                    id="group_name"
-                    name="group_name"
-                    value={formData.group_name}
-                    onChange={handleChange}
-                    required
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
-                  >
-                    <option value="">Seleccione grupo</option>
-                    {validGroups.map((group) => (
-                      <option key={group} value={group}>{group}</option>
-                    ))}
-                  </select>
-                </div>
+                {!formData.is_superuser && (
+                  <div>
+                    <label htmlFor="group_name" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                      Grupo
+                    </label>
+                    <select
+                      id="group_name"
+                      name="group_name"
+                      value={formData.group_name}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                    >
+                      <option value="">Seleccione grupo</option>
+                      {validGroups.map((group) => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -879,20 +897,22 @@ export default function EditarUsuarioPage() {
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
                   />
                 </div>
-                {/* <div>
-                  <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Número credencial
-                  </label>
-                  <input
-                    id="profile.numero_credencial"
-                    name="profile.numero_credencial"
-                    type="number"
-                    value={String(formData.profile.numero_credencial)}
-                    onChange={handleChange}
-                    required
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
-                  />
-                </div> */}
+                {isGerente && !formData.is_superuser && (
+                  <div>
+                    <label htmlFor="profile.numero_credencial" className="block text-xs font-bold text-slate-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                      Número credencial
+                    </label>
+                    <input
+                      id="profile.numero_credencial"
+                      name="profile.numero_credencial"
+                      type="number"
+                      value={String(formData.profile.numero_credencial)}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">

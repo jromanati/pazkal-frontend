@@ -803,7 +803,7 @@ export default function EditarOperadorPage() {
           fecha_ultima_capacitacion: u.profile?.fecha_ultima_capacitacion ?? new Date().toISOString().slice(0, 10),
           empresa_capacitadora: u.profile?.empresa_capacitadora ?? '',
         },
-      })
+      });
 
       const imageResponse = await UsersService.getCredentialImage(userId)
       if (imageResponse.success && imageResponse.data) {

@@ -203,6 +203,45 @@ export class UsersService {
         return apiClient.get<CredentialImageResponse>(`users/${userId}/credential-image/`)
     }
 
+    static async downloadCredentialImage(
+        userId: number | string,
+    ): Promise<ApiResponse<Blob>> {
+        try {
+            const infoRes = await UsersService.getCredentialImage(userId)
+            if (!infoRes.success || !infoRes.data?.image_url) {
+                return {
+                    success: false,
+                    error: infoRes.error || "No existe URL de credencial.",
+                }
+            }
+
+            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+            const url = infoRes.data.image_url
+
+            const res = await fetch(url, {
+                method: "GET",
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+            })
+
+            if (!res.ok) {
+                return {
+                    success: false,
+                    error: `HTTP Error: ${res.status}`,
+                }
+            }
+
+            const blob = await res.blob()
+            return { success: true, data: blob }
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Error desconocido",
+            }
+        }
+    }
+
     static async listOperatorDocuments(
         userId: number | string,
     ): Promise<ApiResponse<OperatorDocument[]>> {

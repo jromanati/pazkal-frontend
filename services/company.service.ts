@@ -56,6 +56,7 @@ export type CompanyDocumentType =
   | 'mandate_auth'
   | 'special_auth'
   | 'aircraft_maint'
+  | 'manager_signature'
 
 export interface CompanyDocumentItem {
   id: number

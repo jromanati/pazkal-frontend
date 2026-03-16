@@ -148,6 +148,7 @@ export default function UsuariosPage() {
     }, [users])
 
     const filteredUsuarios = usuarios.filter((u) => {
+        if (u.tipoUsuario === 'operador') return false
         const nombre = u.nombre.toLowerCase()
         const rut = u.rut.toLowerCase()
         const email = u.email.toLowerCase()
@@ -242,7 +243,6 @@ export default function UsuariosPage() {
                             <option value="">Todos</option>
                             <option value="administrador">Administrador</option>
                             <option value="gerencia">Gerente</option>
-                            <option value="operador">Operador</option>
                             <option value="visualizador">Visualizador</option>
                         </select>
                     </div>

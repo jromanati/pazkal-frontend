@@ -54,6 +54,21 @@ export default function EditarBitacoraPage() {
     comentarios: ''
   })
 
+  const computeDurationMinutes = (from: string, to: string) => {
+    if (!from || !to) return ''
+    const parse = (t: string) => {
+      const [hh, mm] = t.split(':').map(Number)
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null
+      return hh * 60 + mm
+    }
+    const a = parse(from)
+    const b = parse(to)
+    if (a === null || b === null) return ''
+    let diff = b - a
+    if (diff < 0) diff += 24 * 60
+    return String(diff)
+  }
+
   const [baterias, setBaterias] = useState([
     { bateria: 'BATERÍA 1', inicio: '', termino: '' },
     { bateria: 'BATERÍA 2', inicio: '', termino: '' },
@@ -77,6 +92,7 @@ export default function EditarBitacoraPage() {
 
     const loadLists = async () => {
       const ordersRes = await FlightOrdersService.listOrders({
+        status: 'PENDING',
         ordering: '-scheduled_date',
         branch_id: isOperator && defaultBranchId ? Number(defaultBranchId) : undefined,
       })
@@ -337,6 +353,8 @@ export default function EditarBitacoraPage() {
 
     setLoading(true)
     try {
+      const computedDuration = computeDurationMinutes(formData.utcSalida, formData.utcLlegada)
+
       const droneIds = selectedDroneIds
         .filter(Boolean)
         .map((x) => Number(x))
@@ -372,7 +390,7 @@ export default function EditarBitacoraPage() {
         arrival_time_utc: toApiTime(formData.utcLlegada),
         departure_time_local: toApiTime(formData.gtmSalida),
         arrival_time_local: toApiTime(formData.gtmLlegada),
-        flight_duration_minutes: formData.tiempoVuelo ? Number(formData.tiempoVuelo) : undefined,
+        flight_duration_minutes: computedDuration ? Number(computedDuration) : undefined,
         aerial_work_type: formData.trabajoAereo,
         activity_description: formData.actividadRealizada,
         comments: formData.comentarios,
@@ -400,7 +418,13 @@ export default function EditarBitacoraPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData(prev => {
+      const next = { ...prev, [name]: value }
+      if (name === 'utcSalida' || name === 'utcLlegada') {
+        next.tiempoVuelo = computeDurationMinutes(next.utcSalida, next.utcLlegada)
+      }
+      return next
+    })
   }
 
   const handleBateriaChange = (index: number, field: 'inicio' | 'termino', value: string) => {

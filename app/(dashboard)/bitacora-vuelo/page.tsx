@@ -185,6 +185,7 @@ export default function BitacoraVueloPage() {
 
     const loadFiltersData = async () => {
       const ordersRes = await FlightOrdersService.listOrders({
+        // status: 'PENDING',
         ordering: '-scheduled_date',
         branch_id: isOperator && defaultBranchId ? Number(defaultBranchId) : undefined,
       })
@@ -319,7 +320,7 @@ export default function BitacoraVueloPage() {
                 onChange={(v) => setFilters((p) => ({ ...p, flight_order_id: v }))}
                 options={[
                   { value: '', label: 'Todas' },
-                  ...flightOrders.map((o) => ({ value: String(o.id), label: o.order_number })),
+                  ...flightOrders.map((o) => ({ value: String(o.id), label: `${o.order_number} - ${o.location}` })),
                 ]}
                 placeholder="Todas"
                 searchPlaceholder="Buscar orden..."

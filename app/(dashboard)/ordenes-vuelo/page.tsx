@@ -12,7 +12,7 @@ import { CompanyService, type CompanyListItem } from '@/services/company.service
 import { UsersService, type User } from '@/services/users.service'
 import { BranchService, type Branch } from '@/services/branches.service'
 import { canAction, canView, getCurrentRole, getCurrentUserFromStorage } from '@/lib/permissions'
-import { buildFlightOrderPdfHtml, downloadPdfFromHtml, openPrintPdf } from '@/lib/pdf'
+import { buildFlightOrderPdfHtml, downloadPdfFromHtml, openPrintPdf, renderPdfBlobFromHtml } from '@/lib/pdf'
 
 export default function OrdenesVueloPage() {
   const { toggle } = useSidebar()
@@ -132,12 +132,120 @@ export default function OrdenesVueloPage() {
         }
       }
 
-      const pdf = buildFlightOrderPdfHtml({ order })
+      const companyId = Number(order?.company?.id ?? order?.company_id ?? NaN)
+      let managerSignatureDataUrl: string | undefined
+      let managerName: string | undefined
+      let managerEmail: string | undefined
+      let managerPhone: string | undefined
+      let signatureMimeType: string | undefined
+      let signatureSourceUrl: string | undefined
+      if (!Number.isNaN(companyId)) {
+        const companyRes = await CompanyService.getCompany(companyId)
+        if (companyRes.success && companyRes.data) {
+          managerName = (companyRes.data as any)?.operations_manager_name || undefined
+          managerEmail = (companyRes.data as any)?.operations_manager_email || undefined
+          managerPhone = (companyRes.data as any)?.operations_manager_phone || undefined
+
+          const docs: any[] = Array.isArray((companyRes.data as any)?.documents) ? (companyRes.data as any).documents : []
+          const signatureDoc =
+            docs.find((d) => String(d?.document_type ?? d?.type ?? d?.documentType ?? '').toLowerCase() === 'manager_signature') 
+
+          const signatureUrl = String(signatureDoc?.file_url ?? signatureDoc?.fileUrl ?? signatureDoc?.url ?? '')
+          signatureMimeType = String(signatureDoc?.mime_type ?? signatureDoc?.mimeType ?? '') || undefined
+          signatureSourceUrl = signatureUrl || undefined
+          if (signatureUrl) {
+            try {
+              const token = localStorage.getItem('token')
+              const proxyUrl = `/api/proxy-file?url=${encodeURIComponent(signatureUrl)}`
+              const imgRes = await fetch(proxyUrl, {
+                headers: {
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              })
+              if (imgRes.ok) {
+                const blob = await imgRes.blob()
+
+                if ((signatureMimeType || blob.type) !== 'application/pdf') {
+                  managerSignatureDataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader()
+                    reader.onloadend = () => resolve(String(reader.result || ''))
+                    reader.readAsDataURL(blob)
+                  })
+                }
+              }
+            } catch {
+              // noop
+            }
+          }
+        }
+      }
+
+      const pdf = buildFlightOrderPdfHtml({
+        order,
+        managerSignatureDataUrl,
+        managerName,
+        managerEmail,
+        managerPhone,
+      })
+
+      const filename = `${pdf.documentTitle || 'orden_vuelo'}.pdf`
+
+      const downloadBlob = (blob: Blob) => {
+        const objectUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(objectUrl)
+      }
+
+      const isSignaturePdf = String(signatureMimeType || '').toLowerCase() === 'application/pdf'
+
+      if (isSignaturePdf && signatureSourceUrl) {
+        try {
+          const baseBlob = await renderPdfBlobFromHtml({ title: pdf.title, html: pdf.html })
+
+          const token = localStorage.getItem('token')
+          const proxyUrl = `/api/proxy-file?url=${encodeURIComponent(signatureSourceUrl)}`
+          const sigRes = await fetch(proxyUrl, {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          })
+
+          if (!sigRes.ok) {
+            downloadBlob(baseBlob)
+            return
+          }
+
+          const sigBlob = await sigRes.blob()
+
+          const { PDFDocument } = await import('pdf-lib')
+          const baseDoc = await PDFDocument.load(await baseBlob.arrayBuffer())
+          const sigDoc = await PDFDocument.load(await sigBlob.arrayBuffer())
+          const sigPages = await baseDoc.copyPages(sigDoc, sigDoc.getPageIndices())
+          sigPages.forEach((p: unknown) => baseDoc.addPage(p as any))
+          const mergedBytes = await baseDoc.save()
+          downloadBlob(new Blob([mergedBytes], { type: 'application/pdf' }))
+          return
+        } catch {
+          try {
+            await downloadPdfFromHtml({ title: pdf.title, html: pdf.html, filename })
+            return
+          } catch {
+            openPrintPdf({ title: pdf.title, html: pdf.html, documentTitle: pdf.documentTitle })
+            return
+          }
+        }
+      }
+
       try {
         await downloadPdfFromHtml({
           title: pdf.title,
           html: pdf.html,
-          filename: `${pdf.documentTitle || 'orden_vuelo'}.pdf`,
+          filename,
         })
       } catch {
         openPrintPdf({ title: pdf.title, html: pdf.html, documentTitle: pdf.documentTitle })

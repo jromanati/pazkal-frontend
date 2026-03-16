@@ -62,6 +62,21 @@ export default function NuevaBitacoraPage() {
     comentarios: ''
   })
 
+  const computeDurationMinutes = (from: string, to: string) => {
+    if (!from || !to) return ''
+    const parse = (t: string) => {
+      const [hh, mm] = t.split(':').map(Number)
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null
+      return hh * 60 + mm
+    }
+    const a = parse(from)
+    const b = parse(to)
+    if (a === null || b === null) return ''
+    let diff = b - a
+    if (diff < 0) diff += 24 * 60
+    return String(diff)
+  }
+
   const [baterias, setBaterias] = useState([
     { bateria: 'BATERÍA 1', inicio: '', termino: '' },
     { bateria: 'BATERÍA 2', inicio: '', termino: '' },
@@ -73,6 +88,7 @@ export default function NuevaBitacoraPage() {
 
     const load = async () => {
       const ordersRes = await FlightOrdersService.listOrders({
+        status: 'PENDING',
         ordering: '-scheduled_date',
         branch_id: isOperator && defaultBranchId ? Number(defaultBranchId) : undefined,
       })
@@ -235,6 +251,7 @@ export default function NuevaBitacoraPage() {
 
     setLoading(true)
     try {
+        const computedDuration = computeDurationMinutes(formData.utcSalida, formData.utcLlegada)
       const dronesPayload = selectedDroneIds
         .filter(Boolean)
         .map((droneId) => {
@@ -266,7 +283,7 @@ export default function NuevaBitacoraPage() {
         arrival_time_utc: toApiTime(formData.utcLlegada),
         departure_time_local: toApiTime(formData.gtmSalida),
         arrival_time_local: toApiTime(formData.gtmLlegada),
-        flight_duration_minutes: formData.tiempoVuelo ? Number(formData.tiempoVuelo) : undefined,
+        flight_duration_minutes: computedDuration ? Number(computedDuration) : undefined,
         aerial_work_type: formData.trabajoAereo,
         activity_description: formData.actividadRealizada,
         comments: formData.comentarios,
@@ -294,8 +311,14 @@ export default function NuevaBitacoraPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
+    setFormData(prev => {
+    const next = { ...prev, [name]: value }
+    if (name === 'utcSalida' || name === 'utcLlegada') {
+        next.tiempoVuelo = computeDurationMinutes(next.utcSalida, next.utcLlegada)
+    }
+    return next
+    })
+}
 
   const handleBateriaChange = (index: number, field: 'inicio' | 'termino', value: string) => {
     setBaterias(prev => prev.map((bat, i) => 
@@ -643,6 +666,7 @@ export default function NuevaBitacoraPage() {
                   value={formData.tiempoVuelo}
                   onChange={handleInputChange}
                   placeholder="00"
+                  disabled
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs font-bold text-[#2c528c] focus:ring-[#2c528c] focus:border-[#2c528c]"
                 />
               </div>

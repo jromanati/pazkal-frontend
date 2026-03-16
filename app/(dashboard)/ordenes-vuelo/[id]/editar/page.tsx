@@ -71,6 +71,15 @@ export default function EditarOrdenVueloPage() {
     loadLists()
   }, [mounted, canRead])
 
+  useEffect(() => {
+    if (!mounted || !canRead) return
+    if (!formData.empresa) return
+    const company = companies.find((c) => String(c.id) === String(formData.empresa))
+    const opsManagerName = String((company as any)?.operations_manager_name ?? '')
+    if (!opsManagerName) return
+    setFormData((prev) => ({ ...prev, gerenteResponsable: opsManagerName }))
+  }, [mounted, canRead, formData.empresa, companies])
+
   const loadBranches = async (companyId: string) => {
     if (!companyId) {
       setBranches([])
@@ -410,7 +419,16 @@ export default function EditarOrdenVueloPage() {
                   <SearchableSelect
                     value={formData.empresa || null}
                     onChange={(v) => {
-                      setFormData((prev) => ({ ...prev, empresa: String(v), sucursal: '', piloto: '' }))
+                      const companyId = String(v)
+                      const company = companies.find((c) => String(c.id) === companyId)
+                      const opsManagerName = String((company as any)?.operations_manager_name ?? '')
+                      setFormData((prev) => ({
+                        ...prev,
+                        empresa: companyId,
+                        sucursal: '',
+                        piloto: '',
+                        gerenteResponsable: opsManagerName,
+                      }))
                     }}
                     options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
                     placeholder="Seleccione una empresa"
@@ -627,9 +645,9 @@ export default function EditarOrdenVueloPage() {
                   id="gerenteResponsable"
                   name="gerenteResponsable"
                   value={formData.gerenteResponsable}
-                  onChange={handleChange}
+                  readOnly
                   placeholder="Nombre de autoridad a cargo"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  className="w-full bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm"
                 />
               </div>
             </div>

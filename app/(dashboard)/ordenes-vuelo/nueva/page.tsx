@@ -25,6 +25,7 @@ export default function NuevaOrdenVueloPage() {
   const [companies, setCompanies] = useState<CompanyListItem[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [operators, setOperators] = useState<User[]>([])
+  const [operatorManeger, setOperatorManeger] = useState<string>("")
 
   useEffect(() => {
     setMounted(true)
@@ -109,6 +110,25 @@ export default function NuevaOrdenVueloPage() {
     setOperators(ops)
   }
 
+  const loadOperationManager = async (companyId: string) => {
+    if (!companyId) {
+      setOperatorManeger("")
+      return
+    }
+
+    const res = await CompanyService.getCompany(companyId)
+    if (!res.success || !res.data) {
+      toast({
+        title: 'No se pudo cargar el gerente de operaciones',
+        description: res.error || 'Error al obtener gerente de operaciones.',
+        variant: 'destructive',
+      })
+      setOperatorManeger("")
+      return
+    }
+    setOperatorManeger(res.data.operations_manager_name || "")
+  }
+
   useEffect(() => {
     if (!mounted || !canCreate) return
     loadBranches(formData.empresa)
@@ -118,6 +138,11 @@ export default function NuevaOrdenVueloPage() {
     if (!mounted || !canCreate) return
     loadOperators(formData.sucursal)
   }, [mounted, canCreate, formData.sucursal])
+
+  useEffect(() => {
+    if (!mounted || !canCreate) return
+    loadOperationManager(formData.empresa)
+  }, [mounted, canCreate, formData.empresa])
 
   const operadoresFiltrados = operators
 
@@ -265,7 +290,13 @@ export default function NuevaOrdenVueloPage() {
                 <SearchableSelect
                   value={formData.empresa || null}
                   onChange={(v) => {
-                    setFormData((prev) => ({ ...prev, empresa: String(v), sucursal: '', piloto: '' }))
+                    const companyId = String(v)
+                    setFormData((prev) => ({
+                      ...prev,
+                      empresa: companyId,
+                      sucursal: '',
+                      piloto: '',
+                    }))
                   }}
                   options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
                   placeholder="Seleccione una empresa"
@@ -493,10 +524,10 @@ export default function NuevaOrdenVueloPage() {
                   type="text"
                   id="gerenteResponsable"
                   name="gerenteResponsable"
-                  value={formData.gerenteResponsable}
-                  onChange={handleChange}
+                  value={operatorManeger}
+                  readOnly
                   placeholder="Nombre de autoridad a cargo"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:ring-[#2c528c] focus:border-[#2c528c]"
+                  className="w-full bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm"
                 />
               </div>
             </div>
